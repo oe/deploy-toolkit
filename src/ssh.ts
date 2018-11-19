@@ -5,7 +5,7 @@ import glob from 'glob'
 import fs from 'fs'
 import path from 'path'
 
-/** 上传配置 */
+/** upload config */
 export interface IUploadConfig {
   type: 'upload'
   /** source file(in local), could be a specified file path, directory path or a glob pattern */
@@ -14,6 +14,8 @@ export interface IUploadConfig {
   srcPrefix?: string
   /** destination path(on server), should be a file path if src is a specified file, or a directory for other situations */
   dest: string
+  /** allow failure, so the command sequence will continue to run even this failed */
+  allowFailure?: boolean
 }
 
 /** download config */
@@ -23,6 +25,8 @@ export interface IDownloadConfig {
   src: string
   /** dest save path(in local) */
   dest: string
+  /** allow failure, so the command sequence will continue to run even this failed */
+  allowFailure?: boolean
 }
 
 /** custom command */
@@ -30,10 +34,25 @@ export interface IRunConfig {
   type: 'cmd'
   /** cmd arguments */
   args: string[]
-  /** options */
-  options?: any,
   /** cmd work directory */
   cwd?: string
+  /** options */
+  options?: {
+    /** another way to set work directory, will be rewrite if set outside */
+    cwd?: string,
+    /** extra options for ssh2.exec */
+    options?: Object
+    /** input for the command */
+    stdin?: string
+    /** output */
+    stream?: 'stdout' | 'stderr' | 'both'
+    /** stdout event */
+    onStdout?: ((chunk: Buffer) => void)
+    /** stderror event */
+    onStderr?: ((chunk: Buffer) => void)
+  }
+  /** allow failure, so the command sequence will continue to run even this failed */
+  allowFailure?: boolean
 }
 
 /** command */
@@ -43,12 +62,20 @@ export type ICmds = ICmd[]
 
 /** SSH Connection config */
 export interface ISshConfig {
+  /** Hostname or IP address of the server. */
   host: string
+  /** Port number of the server. */
   port?: number
-  username: string
+  /** Username for authentication. */
+  username?: string
+  /** Password for password-based user authentication. */
   password?: string
-  passphrase?: string
+  /** file path of the private key, or the private key text content */
   privateKey?: string
+  /** For an encrypted private key, this is the passphrase used to decrypt it. */
+  passphrase?: string
+  /** any other options from ssh2 ConnectConfig */
+  [k: string]: any
 }
 
 /** deploy confgi */
@@ -79,22 +106,34 @@ export default async function deploy (deployCmd: IDeployConfig) {
     const cmds = deployCmd.cmds
     for (let index = 0; index < cmds.length; index++) {
       const cmd = cmds[index]
-      switch (cmd.type) {
-        case 'cmd':
-          await runSSHCmd(ssh, cmd, showLog)
-          break
-        case 'upload':
-          await upload(ssh, cmd, showLog)
-          break
-        case 'download':
-          await download(ssh, cmd, showLog)
-          break
-        default:
-          throw new TypeError(`unsupported cmd ${JSON.stringify(cmd)}`)
+      try {
+        switch (cmd.type) {
+          case 'cmd':
+            await runSSHCmd(ssh, cmd, showLog)
+            break
+          case 'upload':
+            await upload(ssh, cmd, showLog)
+            break
+          case 'download':
+            await download(ssh, cmd, showLog)
+            break
+          default:
+            throw new TypeError(`unsupported cmd ${JSON.stringify(cmd)}`)
+        }
+      } catch (error) {
+        if (cmd.allowFailure) {
+          if (showLog) {
+            console.warn('[deploy][cmd] command failed:')
+            console.warn(error)
+          }
+          continue
+        }
+        throw error
       }
     }
     // close connection
     ssh.dispose()
+
   } catch (error) {
     // close connection even error occured 
     if (ssh && ssh.dispose) {
@@ -116,7 +155,8 @@ async function getSshClient (config: ISshConfig, showLog: boolean) {
 
 /** exec remote command */
 async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
-  const options = cmd.options || { stream: 'stdout' }
+
+  const options = cmd.options || { stream: 'both' }
   if (cmd.cwd) options.cwd = cmd.cwd
   if (showLog) {
     console.log('[deploy][cmd] `', cmd.args.join(' '), '` with cwd', cmd.cwd)
@@ -126,6 +166,7 @@ async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
     console.log('[deploy][cmd] command result:')
     console.log(result)
   }
+
 }
 
 /** upload files and directory */

@@ -678,6 +678,22 @@
   resolved "https://registry.yarnpkg.com/@types/node/-/node-8.10.38.tgz#e05c201a668492e534b48102aca0294898f449f6"
   integrity sha512-EibsnbJerd0hBFaDjJStFrVbVBAtOy4dgL8zZFw0uOvPqzBAX59Ci8cgjg3+RgJIWhsB5A4c+pi+D4P9tQQh/A==
 
+"@types/ssh2-streams@*":
+  version "0.1.2"
+  resolved "https://registry.yarnpkg.com/@types/ssh2-streams/-/ssh2-streams-0.1.2.tgz#7aa18b8c2450f17699e9ea18a76efc838188d58d"
+  integrity sha1-eqGLjCRQ8XaZ6eoYp278g4GI1Y0=
+  dependencies:
+    "@types/node" "*"
+
+"@types/ssh2@^0.5.36":
+  version "0.5.36"
+  resolved "https://registry.yarnpkg.com/@types/ssh2/-/ssh2-0.5.36.tgz#bcd702ccdb6382af3ebaeebe73423b4aa46939db"
+  integrity sha512-g7tY3jO05nP68NNj653W2OnwjO7lb+c4n9NpJqkK9vqC1W9IqW+BzgX91pWAJDMmNz5KwFOo4mHoyDJelbNkpw==
+  dependencies:
+    "@types/events" "*"
+    "@types/node" "*"
+    "@types/ssh2-streams" "*"
+
 abbrev@1:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/abbrev/-/abbrev-1.1.1.tgz#f8f2c887ad10bf67f634f005b6987fed3179aac8"
