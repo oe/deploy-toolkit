@@ -26,7 +26,7 @@ yarn add deploy-toolkit
 ### Exmaple
 
 ```js
-import { deploy } from '@toolkit/deploy'
+import { deploy } from 'deploy-toolkit'
 import fs from 'fs'
 import path from 'path'
 
