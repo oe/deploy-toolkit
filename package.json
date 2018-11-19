@@ -1,7 +1,7 @@
 {
   "name": "deploy-toolkit",
-  "version": "0.0.3",
-  "description": "deploy toolkit for autodeploy[*unix os only]",
+  "version": "0.0.4",
+  "description": "A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via ssh, can be used to deploy stuffs or CI/CD",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
   "repository": "https://github.com/evecalm/deploy-toolkit.git",
@@ -17,6 +17,12 @@
     "lint-message": "echo 'lint code before commit'",
     "lint": "tslint -c tslint.json 'src/**/*.ts'"
   },
+  "keywords": [
+    "deploy",
+    "ssh",
+    "cd/cd",
+    "upload"
+  ],
   "husky": {
     "hooks": {
       "pre-commit": "yarn run lint-message && yarn run lint"
