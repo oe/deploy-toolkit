@@ -2,8 +2,6 @@
 
 <h5>A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via `ssh`,  can be used to deploy stuffs or CI/CD. </h5>
 
-All actions are run in sequence, and you can set allow failure for specific action(wont stop the sequence even it failed).
-
 <div align="center">
   <a href="https://travis-ci.org/evecalm/deploy-toolkit">
     <img src="https://travis-ci.org/evecalm/deploy-toolkit.svg?branch=master" alt="Travis CI">
@@ -18,6 +16,8 @@ All actions are run in sequence, and you can set allow failure for specific acti
     <img src="https://img.shields.io/npm/dm/deploy-toolkit.svg" alt="npm version" height="18">
   </a>
 </div>
+
+All actions are run in sequence, and you can set allow failure for specific action(wont stop the sequence even it failed).
 
 ## Exmaple
 
