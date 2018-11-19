@@ -29,21 +29,34 @@ async function deploy(deployCmd) {
     for (let index = 0; index < cmds.length; index++) {
       const cmd = cmds[index];
 
-      switch (cmd.type) {
-        case 'cmd':
-          await runSSHCmd(ssh, cmd, showLog);
-          break;
+      try {
+        switch (cmd.type) {
+          case 'cmd':
+            await runSSHCmd(ssh, cmd, showLog);
+            break;
 
-        case 'upload':
-          await upload(ssh, cmd, showLog);
-          break;
+          case 'upload':
+            await upload(ssh, cmd, showLog);
+            break;
 
-        case 'download':
-          await download(ssh, cmd, showLog);
-          break;
+          case 'download':
+            await download(ssh, cmd, showLog);
+            break;
 
-        default:
-          throw new TypeError(`unsupported cmd ${JSON.stringify(cmd)}`);
+          default:
+            throw new TypeError(`unsupported cmd ${JSON.stringify(cmd)}`);
+        }
+      } catch (error) {
+        if (cmd.allowFailure) {
+          if (showLog) {
+            console.warn('[deploy][cmd] command failed:');
+            console.warn(error);
+          }
+
+          continue;
+        }
+
+        throw error;
       }
     } // close connection
 
@@ -76,7 +89,7 @@ async function getSshClient(config, showLog) {
 
 async function runSSHCmd(ssh, cmd, showLog) {
   const options = cmd.options || {
-    stream: 'stdout'
+    stream: 'both'
   };
   if (cmd.cwd) options.cwd = cmd.cwd;
 
