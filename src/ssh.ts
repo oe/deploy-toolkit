@@ -9,9 +9,9 @@ import os from 'os'
 /** upload config */
 export interface IUploadConfig {
   type: 'upload'
-  /** source file(in local), could be a specified file path, directory path or a glob pattern */
+  /** source file(in local), could be a specified file/directory path or a glob pattern */
   src: string
-  /** if src is a glob pattern, then srcPrefix is need, to determine the path save on server */
+  /** if src is a glob pattern, then srcPrefix is need, to determine the path save on server. omit it if src is a spicifed file/directory path */
   srcPrefix?: string
   /** destination path(on server), should be a file path if src is a specified file, or a directory for other situations */
   dest: string
