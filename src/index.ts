@@ -9,7 +9,7 @@ export {
 } from './ssh'
 
 export {
-  runCmd,
+  runShellCmd,
   findFileRecursive,
   addGitTag
 } from './utils'

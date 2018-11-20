@@ -1,4 +1,4 @@
-import { deploy, IDeployConfig, runCmd, findFileRecursive } from '../src/'
+import { deploy, IDeployConfig, runShellCmd, findFileRecursive } from '../src/'
 import path from 'path'
 
 const config: IDeployConfig = {
@@ -47,9 +47,9 @@ deploy(config).then(() => {
   console.log('all done')
 })
 
-runCmd('ls', ['-al']).then((res) => {
+runShellCmd('ls', ['-al']).then((res) => {
   console.log(res)
 })
 
 
-console.log(findFileRecursive('.git', process.cwd(), true))
+console.log('sss', findFileRecursive('.gitd', process.cwd(), true))

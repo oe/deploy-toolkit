@@ -8,9 +8,9 @@ import path from 'path'
  * @param  {Array<String>} args    args list
  * @param  {Object} options spawn cmd options, cwd is vital
  */
-export function runCmd (cmd: string, options?: SpawnOptions): Promise<string>
-export function runCmd (cmd: string, args?: string[], options?: SpawnOptions): Promise<string>
-export function runCmd (cmd: string, args?: string[] | Object, options?: SpawnOptions) {
+export function runShellCmd (cmd: string, options?: SpawnOptions): Promise<string>
+export function runShellCmd (cmd: string, args?: string[], options?: SpawnOptions): Promise<string>
+export function runShellCmd (cmd: string, args?: string[] | Object, options?: SpawnOptions) {
   if (!Array.isArray(args)) {
     options = args
     args = []
@@ -57,10 +57,10 @@ export function runCmd (cmd: string, args?: string[] | Object, options?: SpawnOp
 /**
  * find a file(dir) recursive( aka try to find package.json, node_modules, etc.)
  * @param fileName file name(or dir name if isDir is true)
- * @param dir the initial dir path to find
+ * @param dir the initial dir path to find, use `process.cwd()` by default
  * @param isDir whether to find a dir
  */
-export function findFileRecursive (fileName: string, dir = process.cwd(), isDir = false) {
+export function findFileRecursive (fileName: string, dir = process.cwd(), isDir = false): string {
   const filepath = path.join(dir, fileName)
   try {
     const stat = fs.statSync(filepath)
@@ -77,13 +77,18 @@ export function findFileRecursive (fileName: string, dir = process.cwd(), isDir 
 
 /** add tag for git, use `v${package.version}` in package.json as tagName by default  */
 export async function addGitTag (tagName?: string) {
+  const options = {
+    cwd: process.cwd()
+  }
   if (!tagName) {
     const pkgPath = findFileRecursive('package.json')
     if (!pkgPath) throw new Error('can not find `package.json` to determine the tagName')
     const pkg = require(pkgPath)
     tagName = `v${pkg.version}`
-
+    // change cwd to package.json's dirname, to avoid use a package.json version string out of a git repo
+    options.cwd = path.dirname(pkgPath)
   }
-  await runCmd('git', ['tag', `${tagName}`])
-  await runCmd('git', ['push', 'origin', `${tagName}`])
+  await runShellCmd('git', ['tag', `${tagName}`], options)
+  await runShellCmd('git', ['push', 'origin', `${tagName}`], options)
+  return tagName
 }
