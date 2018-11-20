@@ -1,6 +1,6 @@
 {
   "name": "deploy-toolkit",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via ssh, can be used to deploy stuffs or CI/CD",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -14,7 +14,6 @@
     "build": "tsc",
     "build:js": "babel ./src --out-dir dist --extensions \".ts\"",
     "build:types": "tsc --emitDeclarationOnly",
-    "postbuild": "tslint -c tslint.json 'dist/**/.{ts,js}' --fix",
     "lint-message": "echo 'lint code before commit'",
     "lint": "tslint -c tslint.json 'src/**/*.ts'"
   },

@@ -1,13 +1,14 @@
-import { deploy, IDeployConfig, runCmd, findFileRecursive } from '../dist/'
+import { deploy, IDeployConfig, runCmd, findFileRecursive } from '../src/'
 import path from 'path'
 
 const config: IDeployConfig = {
   ssh: {
     host: '192.168.2.2',
-    username: 'kk',
+    username: 'evecalm',
     // password: '123456'
-    passphrase: '333',
-    privateKey: '/Users/evecalm/.ssh/solo'
+    passphrase: 'sss',
+    // support ~ as user homedir
+    privateKey: '~/.ssh/solo'
   },
   log: true,
   cmds: [

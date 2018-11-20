@@ -8,6 +8,7 @@ const node_ssh_1 = __importDefault(require("node-ssh"));
 const glob_1 = __importDefault(require("glob"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const os_1 = __importDefault(require("os"));
 /** entrance */
 async function deploy(deployCmd) {
     let ssh;
@@ -60,6 +61,13 @@ async function getSshClient(config, showLog) {
     const ssh = new node_ssh_1.default();
     if (showLog) {
         console.log(`[deploy][connnect] connect to \`${config.host}\` as user \`${config.username}\``);
+    }
+    // if privateKey is a file path and start with ~
+    //    replace ~ with user homedir
+    if (config.privateKey &&
+        !config.privateKey.includes('BEGIN') &&
+        config.privateKey.charAt(0) === '~') {
+        config.privateKey = config.privateKey.replace('~', os_1.default.homedir());
     }
     await ssh.connect(config);
     return ssh;
