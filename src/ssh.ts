@@ -123,7 +123,7 @@ export default async function deploy (deployCmd: IDeployConfig) {
       } catch (error) {
         if (cmd.allowFailure) {
           if (showLog) {
-            console.warn('[deploy][cmd] command failed:')
+            console.warn('[deploy] command failed, but will continue to run:')
             console.warn(error)
           }
           continue
@@ -156,10 +156,10 @@ async function getSshClient (config: ISshConfig, showLog: boolean) {
 /** exec remote command */
 async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
 
-  const options = cmd.options || { stream: 'both' }
+  const options = cmd.options || { stream: 'stdout' }
   if (cmd.cwd) options.cwd = cmd.cwd
   if (showLog) {
-    console.log('[deploy][cmd] `', cmd.args.join(' '), '` with cwd', cmd.cwd)
+    console.log('[deploy][cmd] run `', cmd.args.join(' '), '` with cwd', cmd.cwd)
   }
   const result = await ssh.exec(cmd.args.shift(), cmd.args, options)
   if (showLog) {
@@ -173,11 +173,11 @@ async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
 async function upload (ssh: SSH, cmd: IUploadConfig, showLog: boolean) {
   const srcfiles = await getLocalFile(cmd.src, false)
   if (showLog) {
-    console.log('[deploy][upload]upload file with config', cmd)
+    console.log('[deploy][upload]upload file with config: \n', JSON.stringify(cmd, null, 2))
   }
   if (!srcfiles.length) {
     if (showLog) {
-      console.warn('[deploy][upload][warn]can not find any file to upload with config', cmd)
+      console.warn('[deploy][upload][warn]can not find any file to upload with config:\n ', JSON.stringify(cmd, null, 2))
     }
     return
   }
@@ -191,7 +191,7 @@ async function upload (ssh: SSH, cmd: IUploadConfig, showLog: boolean) {
   }
   const filePairs = getFilePairs(srcfiles, cmd)
   if (showLog) {
-    console.log('[deploy][upload] try to upload files', filePairs)
+    console.log('[deploy][upload] try to upload files: \n', JSON.stringify(filePairs, null, 2))
   }
   await uploadFiles(ssh, filePairs)
 }
@@ -199,7 +199,7 @@ async function upload (ssh: SSH, cmd: IUploadConfig, showLog: boolean) {
 /** download a single file */
 async function download (ssh: SSH, cmd: IDownloadConfig, showLog: boolean) {
   if (showLog) {
-    console.log('[deploy][download]download file with config', cmd)
+    console.log('[deploy][download]download file with config: \n', JSON.stringify(cmd, null, 2))
   }
   await ssh.getFile(cmd.dest, cmd.src)
 }
