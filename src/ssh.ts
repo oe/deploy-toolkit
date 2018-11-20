@@ -4,6 +4,7 @@ import SSH from 'node-ssh'
 import glob from 'glob'
 import fs from 'fs'
 import path from 'path'
+import os from 'os'
 
 /** upload config */
 export interface IUploadConfig {
@@ -148,6 +149,13 @@ async function getSshClient (config: ISshConfig, showLog: boolean) {
   const ssh = new SSH()
   if (showLog) {
     console.log(`[deploy][connnect] connect to \`${config.host}\` as user \`${config.username}\``)
+  }
+  // if privateKey is a file path and start with ~
+  //    replace ~ with user homedir
+  if (config.privateKey &&
+    !config.privateKey.includes('BEGIN') &&
+    config.privateKey.charAt(0) === '~') {
+    config.privateKey = config.privateKey.replace('~', os.homedir())
   }
   await ssh.connect(config)
   return ssh
