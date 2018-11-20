@@ -21,7 +21,7 @@
   "keywords": [
     "deploy",
     "ssh",
-    "cd/cd",
+    "ci/cd",
     "upload"
   ],
   "husky": {
