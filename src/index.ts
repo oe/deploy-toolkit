@@ -7,3 +7,9 @@ export {
   ICmds,
   IDeployConfig
 } from './ssh'
+
+export {
+  runCmd,
+  findFileRecursive,
+  addGitTag
+} from './utils'

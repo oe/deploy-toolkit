@@ -1,13 +1,13 @@
-import { deploy, IDeployConfig } from '../src/'
+import { deploy, IDeployConfig, runCmd, findFileRecursive } from '../dist/'
 import path from 'path'
 
 const config: IDeployConfig = {
   ssh: {
-    host: 'my.server.com',
-    username: 'fancy',
+    host: '192.168.2.2',
+    username: 'kk',
     // password: '123456'
-    passphrase: '3344',
-    privateKey: '/Users/evecalm/.ssh/my-private-key'
+    passphrase: '333',
+    privateKey: '/Users/evecalm/.ssh/solo'
   },
   log: true,
   cmds: [
@@ -20,6 +20,12 @@ const config: IDeployConfig = {
       type: 'cmd',
       args: ['ls', 'saiya', '-l'],
       cwd: '~'
+    },
+    {
+      type: 'cmd',
+      args: ['pm23', 'saiya', '-l'],
+      cwd: '~',
+      allowFailure: true
     },
     {
       type: 'upload',
@@ -36,4 +42,13 @@ const config: IDeployConfig = {
 }
 
 
-deploy(config)
+deploy(config).then(() => {
+  console.log('all done')
+})
+
+runCmd('ls', ['-al']).then((res) => {
+  console.log(res)
+})
+
+
+console.log(findFileRecursive('.git', process.cwd(), true))
