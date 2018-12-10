@@ -48,8 +48,8 @@ const config = {
       type: 'cmd',
       // command arguments list
       args: ['mkdir', '-p', 'saiya/test'],
-      // command work directory
-      cwd: '~'
+      // command work directory on remote server
+      cwd: '/home/user'
     },
     {
       type: 'cmd',
@@ -60,7 +60,7 @@ const config = {
     {
       type: 'cmd',
       args: ['ls', 'saiya', '-l'],
-      cwd: '~'
+      cwd: '/home/user'
     },
     {
       // upload files

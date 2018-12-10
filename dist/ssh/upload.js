@@ -1,91 +1,11 @@
 "use strict";
-// 自动上传安装包到测试服务器
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const node_ssh_1 = __importDefault(require("node-ssh"));
+const path_1 = __importDefault(require("path"));
 const glob_1 = __importDefault(require("glob"));
 const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const os_1 = __importDefault(require("os"));
-/** entrance */
-async function deploy(deployCmd) {
-    let ssh;
-    try {
-        const showLog = !!deployCmd.log;
-        ssh = await getSshClient(deployCmd.ssh, showLog);
-        const cmds = deployCmd.cmds;
-        for (let index = 0; index < cmds.length; index++) {
-            const cmd = cmds[index];
-            try {
-                switch (cmd.type) {
-                    case 'cmd':
-                        await runSSHCmd(ssh, cmd, showLog);
-                        break;
-                    case 'upload':
-                        await upload(ssh, cmd, showLog);
-                        break;
-                    case 'download':
-                        await download(ssh, cmd, showLog);
-                        break;
-                    default:
-                        throw new TypeError(`unsupported cmd ${JSON.stringify(cmd)}`);
-                }
-            }
-            catch (error) {
-                if (cmd.allowFailure) {
-                    if (showLog) {
-                        console.warn('[deploy] command failed, but will continue to run:');
-                        console.warn(error);
-                    }
-                    continue;
-                }
-                throw error;
-            }
-        }
-        // close connection
-        ssh.dispose();
-    }
-    catch (error) {
-        // close connection even error occured 
-        if (ssh && ssh.dispose) {
-            ssh.dispose();
-        }
-        throw error;
-    }
-}
-exports.default = deploy;
-/** get SSH object */
-async function getSshClient(config, showLog) {
-    const ssh = new node_ssh_1.default();
-    if (showLog) {
-        console.log(`[deploy][connnect] connect to \`${config.host}\` as user \`${config.username}\``);
-    }
-    // if privateKey is a file path and start with ~
-    //    replace ~ with user homedir
-    if (config.privateKey &&
-        !config.privateKey.includes('BEGIN') &&
-        config.privateKey.charAt(0) === '~') {
-        config.privateKey = config.privateKey.replace('~', os_1.default.homedir());
-    }
-    await ssh.connect(config);
-    return ssh;
-}
-/** exec remote command */
-async function runSSHCmd(ssh, cmd, showLog) {
-    const options = cmd.options || { stream: 'stdout' };
-    if (cmd.cwd)
-        options.cwd = cmd.cwd;
-    if (showLog) {
-        console.log('[deploy][cmd] run `', cmd.args.join(' '), '` with cwd', cmd.cwd);
-    }
-    const result = await ssh.exec(cmd.args.shift(), cmd.args, options);
-    if (showLog) {
-        console.log('[deploy][cmd] command result:');
-        console.log(result);
-    }
-}
 /** upload files and directory */
 async function upload(ssh, cmd, showLog) {
     const srcfiles = await getLocalFile(cmd.src, false);
@@ -112,13 +32,7 @@ async function upload(ssh, cmd, showLog) {
     }
     await uploadFiles(ssh, filePairs);
 }
-/** download a single file */
-async function download(ssh, cmd, showLog) {
-    if (showLog) {
-        console.log('[deploy][download]download file with config: \n', JSON.stringify(cmd, null, 2));
-    }
-    await ssh.getFile(cmd.dest, cmd.src);
-}
+exports.upload = upload;
 /** upload folder */
 async function uploadDir(ssh, srcDir, destDir) {
     const failed = [];
@@ -138,6 +52,7 @@ async function uploadDir(ssh, srcDir, destDir) {
 async function uploadFiles(ssh, pairs) {
     await ssh.putFiles(pairs);
 }
+exports.uploadFiles = uploadFiles;
 function getFilePairs(srcFiles, cmd) {
     if (srcFiles.length === 1) {
         const src = srcFiles[0];
