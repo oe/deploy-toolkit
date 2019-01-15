@@ -60,14 +60,20 @@ export function runShellCmd (cmd: string, args?: string[] | Object, options?: Sp
  * @param dir the initial dir path to find, use `process.cwd()` by default
  * @param isDir whether to find a dir
  */
-export function findFileRecursive (fileName: string, dir = process.cwd(), isDir = false): string {
-  const filepath = path.join(dir, fileName)
-  try {
-    const stat = fs.statSync(filepath)
-    const isFound = isDir ? stat.isDirectory() : stat.isFile()
-    if (isFound) return filepath
-  } catch (e) {
-    // xxx
+export function findFileRecursive (fileName: string | string[], dir = process.cwd(), isDir = false): string {
+  // const filepath = path.join(dir, fileName)
+  const fileNames = Array.isArray(fileName) ? fileName : [fileName]
+  let f: string | undefined = ''
+  // tslint:disable-next-line:no-conditional-assignment
+  while ((f = fileNames.shift())) {
+    const filepath = path.join(dir, f)
+    try {
+      const stat = fs.statSync(filepath)
+      const isFound = isDir ? stat.isDirectory() : stat.isFile()
+      if (isFound) return filepath
+    } catch (e) {
+      // xxx
+    }
   }
   // has reach the top root
   const parentDir = path.dirname(dir)
