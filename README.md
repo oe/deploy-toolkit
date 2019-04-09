@@ -113,17 +113,21 @@ addGitTag('v10.0.0-beta').then(() => {
 
 ```
 
-## Usage
-
-### Install
+## Install
 
 ```sh
 yarn add deploy-toolkit
 ```
 
-### API
+or
 
-#### deploy
+```
+npm i deploy-toolkit -D
+```
+
+## Usage
+
+### `deploy`
 
 Deploy stuffs to remote server with simple json config, you can upload/download/execute-command on remote server.
 
@@ -166,7 +170,7 @@ interface ISshConfig {
 type ICmds = ICmd[]
 
 /** command */
-type ICmd = IUploadConfig | IDownloadConfig | IRunConfig
+type ICmd = IUploadConfig | IDownloadConfig | IRunConfig | IScriptConfig
 
 /** upload config */
 interface IUploadConfig {
@@ -217,9 +221,77 @@ interface IRunConfig {
     /** allow failure, so the command sequence will continue to run even this failed */
     allowFailure?: boolean
 }
+
+
+/**
+ * custom script
+ */ 
+interface IScriptConfig {
+  type: 'script'
+  /* custom shebang, default #!/usr/bin/env bash */
+  shebang?: string
+  /* shell name, default bash. if shebang specified, then shell will be used */
+  shell?: string
+  /* script content, you can use DOWNLOAD/UPLOAD keywords to download or upload file */
+  script: string
+  /* initial work dir */
+  cwd?: string
+  /** allow failure, so the command sequence will continue to run even this failed */
+  allowFailure?: boolean
+}
 ```
 
-#### runShellCmd
+#### Example
+```js
+import { deploy, IDeployConfig, runShellCmd, findFileRecursive } from '../src/'
+import path from 'path'
+
+const config: IDeployConfig = {
+  ssh: {
+    host: '10.213.85.1',
+    username: 'deploy',
+    password: 'passw0rp!'
+  },
+  log: true,
+  cmds: [
+    {
+      type: 'cmd',
+      args: ['mkdir', '-p', 'saiya/test'],
+      cwd: '~/Documents'
+    },
+    {
+      type: 'download',
+      src: '/home/deploy/start.sh',
+      dest: path.join(__dirname, 'start.sh')
+    },
+    {
+      type: 'upload',
+      src: '/home/user1/Documents/Hobby/project1/dist',
+      dest: '/home/deploy/Documents/project1'
+    },
+    {
+      type: 'script',
+      script: `
+      cd ~
+      rm -rf Document/project1
+      UPLOAD /home/user1/Documents/Hobby/project1/dist > /home/deploy/Documents/project1
+      cd Document/project1
+      npm start
+      DOWNLOAD  /home/deploy/Documents/project1/logs/latest.log > /home/user1/Documents/Hobby/logs/latest.log
+      echo "done"
+      `
+    }
+  ]
+}
+
+
+deploy(config).then(() => {
+  console.log('all done')
+})
+
+```
+
+### `runShellCmd`
 
 run shell command on local machine, a promise wrapper of node `child_process.spawn`, by default run the command in cwd `process.cwd()`
 

@@ -1,4 +1,5 @@
 import SSH from 'node-ssh'
+import sshexec from './sshexec'
 /** custom command */
 export interface IRunConfig {
   type: 'cmd'
@@ -33,7 +34,7 @@ export async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
   if (showLog) {
     console.log('[deploy][cmd] run `', cmd.args.join(' '), '` with cwd', cmd.cwd)
   }
-  const result = await ssh.exec(cmd.args.shift(), cmd.args, options)
+  const result = await sshexec(ssh, cmd.args.shift()!, cmd.args, options)
   if (showLog) {
     console.log('[deploy][cmd] command result:')
     console.log(result)
