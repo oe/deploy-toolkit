@@ -10,7 +10,7 @@ import path from 'path'
  */
 export function runShellCmd (cmd: string, options?: SpawnOptions): Promise<string>
 export function runShellCmd (cmd: string, args?: string[], options?: SpawnOptions): Promise<string>
-export function runShellCmd (cmd: string, args?: string[] | Object, options?: SpawnOptions) {
+export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, options?: SpawnOptions) {
   if (!Array.isArray(args)) {
     options = args
     args = []
@@ -30,25 +30,26 @@ export function runShellCmd (cmd: string, args?: string[] | Object, options?: Sp
 
   return new Promise<string>((resolve, reject) => {
     // record response content
-    const output: (string | Buffer)[] = []
+    const stdout: (string | Buffer)[] = []
+    const stderr: (string | Buffer)[] = []
     task.stdout.on('data', data => {
-      output.push(data)
+      stdout.push(data)
     })
     task.stderr.on('data', data => {
-      output.push(data)
+      stderr.push(data)
     })
 
     // listen on error, to aviod command crash
     task.on('error', () => {
-      reject(output)
+      reject(stderr.join('').toString())
     })
 
     task.on('exit', code => {
       if (code) {
-        output.unshift(`error code: ${code}\n`)
-        reject(output.join('').toString())
+        stderr.unshift(`error code: ${code}\n`)
+        reject(stderr.join('').toString())
       } else {
-        resolve(output.join('').toString())
+        resolve(stdout.join('').toString())
       }
     })
   })

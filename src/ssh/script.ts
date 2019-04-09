@@ -7,21 +7,25 @@ import os from 'os'
 
 export interface IScriptConfig {
   type: 'script'
-  /* shell name, default bash */
-  shell?: string
   /* custom shebang, default #!/usr/bin/env bash */
   shebang?: string
+  /* shell name, default bash. if shebang specified, then shell will be used */
+  shell?: string
   /* script content */
   script: string
   /* initial work dir */
-  cwd: string
+  cwd?: string
   /** allow failure, so the command sequence will continue to run even this failed */
   allowFailure?: boolean
 }
 
+/**
+ * get script shebang: #!/bin/sh
+ */
 function getShebang (config: IScriptConfig) {
   const text = config.script.trim()
   if (/^#!/.test(text)) return text
+  // default 
   let shebang = '#!/usr/bin/env bash'
   if (config.shebang) {
     if (!/^#!/.test(config.shebang)) throw new TypeError(`unrecognized shebang ${config.shebang}`)
@@ -32,44 +36,67 @@ function getShebang (config: IScriptConfig) {
   return shebang
 }
 
-function normalizeScript (script: string, shebang: string, cwd: string, needPwd?: boolean) {
+/**
+ * normalize script, add shebang, set cwd and get pwd
+ * @param script original script text
+ * @param shebang default shebang
+ * @param cwd the cwd which will exec the script
+ * @param needCwd whether need to pwd when script exec successfully
+ */
+function normalizeScript (script: string, shebang: string, cwd?: string, needCwd?: boolean) {
   const result = script.trim().split('\n')
   if (!/^#!/.test(result[0])) {
     result.unshift(shebang)
   }
-  result.splice(1, 0, `cd "${cwd}"`)
-  if (needPwd) {
+  if (cwd) result.splice(1, 0, `cd "${cwd}"`)
+  if (needCwd) {
     result.push('pwd')
   }
   return result.join('\n')
 }
 
-function getLastPwd (result: string) {
+/**
+ * get the pwd when script exec successfully from its execuation result
+ * @param result output result of the script exec
+ */
+function getLastCwd (result: string) {
   return result.split('\n').pop() as string
 }
 
+/**
+ * get a temp file name on remote server
+ * @param ssh ssh handler
+ */
 async function getTempfile (ssh: SSH) {
   const result = await ssh.exec('mktemp')
   return result
 }
 
+/**
+ * set path p executable on remote server
+ * @param ssh ssh handler
+ * @param p file path
+ */
 async function chmodX (ssh: SSH, p: string) {
   const result = await ssh.exec('chmod', ['+x', p])
   return result
 }
 
-
+/**
+ * analyze script text, extra DOWNLOAD/UPLOAD cmd
+ * @param script script text
+ */
 function analyzeScript (script: string) {
   return script.trim().split('\n').reduce((acc, cur) => {
-    if (/^DOWNLOAD/.test(cur)) {
+    if (/^\s*DOWNLOAD\b(.+)$/.test(cur)) {
       acc.push({
         type: 'download',
-        code: cur
+        code: RegExp.$1
       })
-    } else if (/^UPLOAD/.test(cur)) {
+    } else if (/^\s*UPLOAD\b(.+)$/.test(cur)) {
       acc.push({
         type: 'upload',
-        code: cur
+        code: RegExp.$1
       })
     } else {
       const last = acc[acc.length - 1]
@@ -87,62 +114,64 @@ function analyzeScript (script: string) {
   }, [] as any[])
 }
 
-function getParams (str: string) {
-  const result: string[] = []
-  str = str.trim()
-  let last = ''
-  let sep: RegExp
-  for (let index = 0; index < str.length; index++) {
-    const element = str[index]
-    if (!last) {
-      if (/\s/.test(element)) continue
-      sep = /"|'/.test(element) ? RegExp(element) : /\s/
-      last = ' '
-    } else {
-      if (sep!.test(element)) {
-        if (last === ' ') continue
-        result.push(last)
-        last = ''
-      } else {
-        last += element
-      }
+/**
+ * get download/upload config from one script
+ * @param str example:  /home/user/project:dist/abc.js>/home/deploy/project1
+ */
+function getFileTransParams (str: string) {
+  const reg = /^(?:([^:]+):)?([^:]+)\s*>\s*(\S+)$/
+  if (reg.test(str.trim())) {
+    return {
+      srcPrefix: RegExp.$1,
+      src: RegExp.$2,
+      dest: RegExp.$3
     }
   }
-  return result.map(l => l.replace(/^ /, ''))
+  throw new Error(`[deploy-toolkit]invalid upload/download config in script: ${str}`)
 }
 
+/**
+ * handle upload command
+ * @param ssh ssh handler
+ * @param code upload command args
+ * @param showLog whethe to show log
+ */
 async function cmdUpload (ssh: SSH, code: string, showLog?: boolean) {
-  const args = getParams(code)
-  if (args.length <= 3) throw new Error('invalid download config:' + code)
-  const src = args[1].split(':')
-
-  const cmd: IUploadConfig = {
-    type: 'upload',
-    src: src[0],
-    srcPrefix: src[1],
-    dest: args[2]
-  }
+  const args = getFileTransParams(code)
+  const cmd = Object.assign({
+    type: 'upload'
+  }, args) as IUploadConfig
   await upload(ssh, cmd, showLog)
 }
 
+/**
+ * handle download command
+ * @param ssh ssh handler
+ * @param code download command args
+ * @param showLog whethe to show log
+ */
 async function cmdDownload (ssh: SSH, code: string, showLog?: boolean) {
-  const args = getParams(code)
-  if (args.length <= 3) throw new Error('invalid download config:' + code)
+  const args = getFileTransParams(code)
 
-  const cmd: IDownloadConfig = {
-    type: 'download',
-    src: args[1],
-    dest: args[2]
-  }
+  const cmd = Object.assign({
+    type: 'download'
+  }, args) as IDownloadConfig
   await download(ssh, cmd, showLog)
 }
 
-async function runCmd (ssh: SSH, code: string, shebang: string, lastCwd: string, needPwd?: boolean) {
+/**
+ * 
+ * @param ssh ssh handler
+ * @param code script code to exec
+ * @param shebang shebang
+ * @param cwd script init pwd
+ * @param needCwd whether need pwd when script exec sucessfully
+ */
+async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?: string, needCwd?: boolean) {
   const remote = await getTempfile(ssh)
-  const script = normalizeScript(code, shebang, lastCwd, needPwd)
+  const script = normalizeScript(code, shebang, cwd, needCwd)
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dt-'))
-  console.log('sh dir', dir, remote)
   const src = path.join(dir, 'script')
   fs.writeFileSync(src, script, 'utf8')
   await uploadFiles(ssh, [{ local: src, remote }])
@@ -151,7 +180,12 @@ async function runCmd (ssh: SSH, code: string, shebang: string, lastCwd: string,
   return result
 }
 
-/** exec remote command */
+/**
+ * entry function of script command
+ * @param ssh ssh handler
+ * @param config script command config
+ * @param showLog whether show exec log
+ */
 export async function runScript (ssh: SSH, config: IScriptConfig, showLog?: boolean) {
   const shebang = getShebang(config)
   const cmds = analyzeScript(config.script)
@@ -161,11 +195,11 @@ export async function runScript (ssh: SSH, config: IScriptConfig, showLog?: bool
     if (cmd.type === 'download') await cmdDownload(ssh, cmd.code, showLog)
     else if (cmd.type === 'upload') await cmdUpload(ssh, cmd.code, showLog)
     else if (cmd.type === 'cmd') {
-      const result = await runCmd(ssh, cmd.codes.join('\n'), shebang, lastCwd, true)
+      const result = await runParticalScript(ssh, cmd.codes.join('\n'), shebang, lastCwd, true)
       if (showLog) {
         console.log(result)
       }
-      lastCwd = getLastPwd(result)
+      lastCwd = getLastCwd(result)
     }
   }
 }
