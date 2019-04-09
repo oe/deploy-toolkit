@@ -10,7 +10,7 @@ import path from 'path'
  */
 export function runShellCmd (cmd: string, options?: SpawnOptions): Promise<string>
 export function runShellCmd (cmd: string, args?: string[], options?: SpawnOptions): Promise<string>
-export function runShellCmd (cmd: string, args?: string[] | Object, options?: SpawnOptions) {
+export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, options?: SpawnOptions) {
   if (!Array.isArray(args)) {
     options = args
     args = []
@@ -30,25 +30,26 @@ export function runShellCmd (cmd: string, args?: string[] | Object, options?: Sp
 
   return new Promise<string>((resolve, reject) => {
     // record response content
-    const output: (string | Buffer)[] = []
+    const stdout: (string | Buffer)[] = []
+    const stderr: (string | Buffer)[] = []
     task.stdout.on('data', data => {
-      output.push(data)
+      stdout.push(data)
     })
     task.stderr.on('data', data => {
-      output.push(data)
+      stderr.push(data)
     })
 
     // listen on error, to aviod command crash
     task.on('error', () => {
-      reject(output)
+      reject(stderr.join('').toString())
     })
 
     task.on('exit', code => {
       if (code) {
-        output.unshift(`error code: ${code}\n`)
-        reject(output.join('').toString())
+        stderr.unshift(`error code: ${code}\n`)
+        reject(stderr.join('').toString())
       } else {
-        resolve(output.join('').toString())
+        resolve(stdout.join('').toString())
       }
     })
   })
@@ -60,14 +61,20 @@ export function runShellCmd (cmd: string, args?: string[] | Object, options?: Sp
  * @param dir the initial dir path to find, use `process.cwd()` by default
  * @param isDir whether to find a dir
  */
-export function findFileRecursive (fileName: string, dir = process.cwd(), isDir = false): string {
-  const filepath = path.join(dir, fileName)
-  try {
-    const stat = fs.statSync(filepath)
-    const isFound = isDir ? stat.isDirectory() : stat.isFile()
-    if (isFound) return filepath
-  } catch (e) {
-    // xxx
+export function findFileRecursive (fileName: string | string[], dir = process.cwd(), isDir = false): string {
+  // const filepath = path.join(dir, fileName)
+  const fileNames = Array.isArray(fileName) ? fileName : [fileName]
+  let f: string | undefined = ''
+  // tslint:disable-next-line:no-conditional-assignment
+  while ((f = fileNames.shift())) {
+    const filepath = path.join(dir, f)
+    try {
+      const stat = fs.statSync(filepath)
+      const isFound = isDir ? stat.isDirectory() : stat.isFile()
+      if (isFound) return filepath
+    } catch (e) {
+      // xxx
+    }
   }
   // has reach the top root
   const parentDir = path.dirname(dir)

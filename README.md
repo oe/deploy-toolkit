@@ -48,8 +48,8 @@ const config = {
       type: 'cmd',
       // command arguments list
       args: ['mkdir', '-p', 'saiya/test'],
-      // command work directory
-      cwd: '~'
+      // command work directory on remote server
+      cwd: '/home/user'
     },
     {
       type: 'cmd',
@@ -60,7 +60,7 @@ const config = {
     {
       type: 'cmd',
       args: ['ls', 'saiya', '-l'],
-      cwd: '~'
+      cwd: '/home/user'
     },
     {
       // upload files
@@ -252,17 +252,26 @@ interface SpawnOptions {
 find a file/dir recursively from specified dir to the root until found, return `''` if not found.
 
 ```typescript
+import { findFileRecursive } from 'deploy-toolkit'
 /**
  * find a file(dir) recursive( aka try to find package.json, node_modules, etc.)
- * @param fileName file name(or dir name if isDir is true)
+ * @param fileName file name(s)(or dir name(s) if isDir is true), if an array, return the first matched one
  * @param dir the initial dir path to find, use `process.cwd()` by default
- * @param isDir whether to find a dir
+ * @param isDir whether to find a dir, default false
  */
-export declare function findFileRecursive(
-    fileName: string,
+function findFileRecursive(
+    fileName: string | string[],
     dir?: string,
     isDir?: boolean
 ): string
+
+// e.g. find babel config file path
+
+const babelRcPath = findFileRecursive([
+    '.babelrc',
+    '.babelrc.js',
+    'babel.config.js'
+])
 ```
 
 #### addGitTag
