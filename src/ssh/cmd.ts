@@ -1,4 +1,4 @@
-import SSH from 'node-ssh'
+import { NodeSSH } from 'node-ssh'
 import sshexec from './sshexec'
 /** custom command */
 export interface IRunConfig {
@@ -12,7 +12,7 @@ export interface IRunConfig {
     /** another way to set work directory, will be rewrite if set outside */
     cwd?: string,
     /** extra options for ssh2.exec */
-    options?: Object
+    options?: Record<string, unknown>
     /** input for the command */
     stdin?: string
     /** output */
@@ -27,7 +27,7 @@ export interface IRunConfig {
 }
 
 /** exec remote command */
-export async function runSSHCmd (ssh: SSH, cmd: IRunConfig, showLog: boolean) {
+export async function runSSHCmd (ssh: NodeSSH, cmd: IRunConfig, showLog: boolean) {
 
   const options = cmd.options || { stream: 'stdout' }
   if (cmd.cwd) options.cwd = cmd.cwd

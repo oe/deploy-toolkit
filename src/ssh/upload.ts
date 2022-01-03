@@ -1,7 +1,7 @@
 import path from 'path'
 import glob from 'glob'
 import fs from 'fs'
-import SSH from 'node-ssh'
+import { NodeSSH } from 'node-ssh'
 
 /** upload config */
 export interface IUploadConfig {
@@ -27,7 +27,7 @@ type IFilePairs = IFilePair[]
 
 
 /** upload files and directory */
-export async function upload (ssh: SSH, cmd: IUploadConfig, showLog?: boolean) {
+export async function upload (ssh: NodeSSH, cmd: IUploadConfig, showLog?: boolean) {
   const srcfiles = await getLocalFile(cmd.src, false)
   if (showLog) {
     console.log('[deploy][upload]upload file with config: \n', JSON.stringify(cmd, null, 2))
@@ -54,7 +54,7 @@ export async function upload (ssh: SSH, cmd: IUploadConfig, showLog?: boolean) {
 }
 
 /** upload folder */
-async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
+async function uploadDir (ssh: NodeSSH, srcDir: string, destDir: string) {
   const failed: string[] = []
   await ssh.putDirectory(srcDir, destDir, {
     recursive: true,
@@ -71,7 +71,7 @@ async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
 
 
 /** upload multi files */
-export async function uploadFiles (ssh: SSH, pairs: IFilePairs) {
+export async function uploadFiles (ssh: NodeSSH, pairs: IFilePairs) {
   await ssh.putFiles(pairs)
 }
 
@@ -101,10 +101,10 @@ function getFilePairs (srcFiles: string[], cmd: IUploadConfig): IFilePairs {
 function getLocalFile (pattern: string, suppressErr: boolean) {
   return new Promise<string[]>((resolve, reject) => {
     glob(path.join(pattern), (err, files) => {
-      if (err) return suppressErr ? resolve() : reject(err)
+      if (err) return suppressErr ? resolve([]) : reject(err)
       if (!files.length) {
         return suppressErr
-          ? resolve()
+          ? resolve([])
           : reject(new Error(`no ${pattern} file found`))
       }
       resolve(files)

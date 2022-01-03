@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import SSH from 'node-ssh';
+import { NodeSSH } from 'node-ssh';
 /** custom command */
 export interface IRunConfig {
     type: 'cmd';
@@ -12,7 +12,7 @@ export interface IRunConfig {
         /** another way to set work directory, will be rewrite if set outside */
         cwd?: string;
         /** extra options for ssh2.exec */
-        options?: Object;
+        options?: Record<string, unknown>;
         /** input for the command */
         stdin?: string;
         /** output */
@@ -26,4 +26,4 @@ export interface IRunConfig {
     allowFailure?: boolean;
 }
 /** exec remote command */
-export declare function runSSHCmd(ssh: SSH, cmd: IRunConfig, showLog: boolean): Promise<void>;
+export declare function runSSHCmd(ssh: NodeSSH, cmd: IRunConfig, showLog: boolean): Promise<void>;

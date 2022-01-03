@@ -12,20 +12,19 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "target": "esnext",
+    "target": "es6",
     "allowJs": false,
     "baseUrl": "./",
     "lib": [
       "dom",
-      "es7"
-    ],
-    "paths": {
-      "src/*": [
-        "src/"
-      ]
-    }
+      "es6"
+    ]
   },
   "include": [
-    "./src/**/*.ts"
+    "./src"
+  ],
+  "exclude": [
+    "./test",
+    "./dist"
   ]
 }

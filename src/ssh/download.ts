@@ -1,4 +1,4 @@
-import SSH from 'node-ssh'
+import { NodeSSH } from 'node-ssh'
 /** download config */
 export interface IDownloadConfig {
   type: 'download'
@@ -11,7 +11,7 @@ export interface IDownloadConfig {
 }
 
 /** download a single file */
-export async function download (ssh: SSH, cmd: IDownloadConfig, showLog?: boolean) {
+export async function download (ssh: NodeSSH, cmd: IDownloadConfig, showLog?: boolean) {
   if (showLog) {
     console.log('[deploy][download]download file with config: \n', JSON.stringify(cmd, null, 2))
   }

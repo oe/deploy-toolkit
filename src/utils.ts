@@ -17,7 +17,6 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
   }
   const task = child_process.spawn(
     cmd,
-    // @ts-ignore
     args,
     Object.assign(
       {
@@ -32,10 +31,10 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
     // record response content
     const stdout: (string | Buffer)[] = []
     const stderr: (string | Buffer)[] = []
-    task.stdout.on('data', data => {
+    task.stdout && task.stdout.on('data', data => {
       stdout.push(data)
     })
-    task.stderr.on('data', data => {
+    task.stderr && task.stderr.on('data', data => {
       stderr.push(data)
     })
 
@@ -90,6 +89,7 @@ export async function addGitTag (tagName?: string) {
   if (!tagName) {
     const pkgPath = findFileRecursive('package.json')
     if (!pkgPath) throw new Error('can not find `package.json` to determine the tagName')
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const pkg = require(pkgPath)
     tagName = `v${pkg.version}`
     // change cwd to package.json's dirname, to avoid use a package.json version string out of a git repo

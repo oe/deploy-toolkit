@@ -1,4 +1,4 @@
-import SSH from 'node-ssh';
+import { NodeSSH } from 'node-ssh';
 /** download config */
 export interface IDownloadConfig {
     type: 'download';
@@ -10,4 +10,4 @@ export interface IDownloadConfig {
     allowFailure?: boolean;
 }
 /** download a single file */
-export declare function download(ssh: SSH, cmd: IDownloadConfig, showLog?: boolean): Promise<void>;
+export declare function download(ssh: NodeSSH, cmd: IDownloadConfig, showLog?: boolean): Promise<void>;

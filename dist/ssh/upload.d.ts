@@ -1,4 +1,4 @@
-import SSH from 'node-ssh';
+import { NodeSSH } from 'node-ssh';
 /** upload config */
 export interface IUploadConfig {
     type: 'upload';
@@ -19,7 +19,7 @@ interface IFilePair {
 }
 declare type IFilePairs = IFilePair[];
 /** upload files and directory */
-export declare function upload(ssh: SSH, cmd: IUploadConfig, showLog?: boolean): Promise<void>;
+export declare function upload(ssh: NodeSSH, cmd: IUploadConfig, showLog?: boolean): Promise<void>;
 /** upload multi files */
-export declare function uploadFiles(ssh: SSH, pairs: IFilePairs): Promise<void>;
+export declare function uploadFiles(ssh: NodeSSH, pairs: IFilePairs): Promise<void>;
 export {};

@@ -1,5 +1,5 @@
 // 自动上传安装包到测试服务器
-import SSH from 'node-ssh'
+import { NodeSSH } from 'node-ssh'
 import os from 'os'
 
 import { upload, IUploadConfig } from './upload'
@@ -49,7 +49,7 @@ export interface IDeployConfig {
 
 /** entrance */
 export default async function deploy (deployCmd: IDeployConfig) {
-  let ssh: SSH
+  let ssh: NodeSSH | undefined
   try {
     const showLog = !!deployCmd.log
     ssh = await getSshClient(deployCmd.ssh, showLog)
@@ -98,7 +98,7 @@ export default async function deploy (deployCmd: IDeployConfig) {
 
 /** get SSH object */
 async function getSshClient (config: ISshConfig, showLog: boolean) {
-  const ssh = new SSH()
+  const ssh = new NodeSSH()
   if (showLog) {
     console.log(`[deploy][connnect] connect to \`${config.host}\` as user \`${config.username}\``)
   }

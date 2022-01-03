@@ -1,4 +1,4 @@
-import SSH from 'node-ssh'
+import { NodeSSH } from 'node-ssh'
 import fs from 'fs'
 import { upload, uploadFiles, IUploadConfig } from './upload'
 import { download, IDownloadConfig } from './download'
@@ -67,8 +67,8 @@ function getLastCwd (result: string) {
  * get a temp file name on remote server
  * @param ssh ssh handler
  */
-async function getTempfile (ssh: SSH) {
-  const result = await ssh.exec('mktemp')
+async function getTempfile (ssh: NodeSSH) {
+  const result = await ssh.exec('mktemp', [])
   return result
 }
 
@@ -77,7 +77,7 @@ async function getTempfile (ssh: SSH) {
  * @param ssh ssh handler
  * @param p file path
  */
-async function chmodX (ssh: SSH, p: string) {
+async function chmodX (ssh: NodeSSH, p: string) {
   const result = await ssh.exec('chmod', ['+x', p])
   return result
 }
@@ -136,7 +136,7 @@ function getFileTransParams (str: string) {
  * @param code upload command args
  * @param showLog whethe to show log
  */
-async function cmdUpload (ssh: SSH, code: string, showLog?: boolean) {
+async function cmdUpload (ssh: NodeSSH, code: string, showLog?: boolean) {
   const args = getFileTransParams(code)
   const cmd = Object.assign({
     type: 'upload'
@@ -150,7 +150,7 @@ async function cmdUpload (ssh: SSH, code: string, showLog?: boolean) {
  * @param code download command args
  * @param showLog whethe to show log
  */
-async function cmdDownload (ssh: SSH, code: string, showLog?: boolean) {
+async function cmdDownload (ssh: NodeSSH, code: string, showLog?: boolean) {
   const args = getFileTransParams(code)
 
   const cmd = Object.assign({
@@ -167,7 +167,7 @@ async function cmdDownload (ssh: SSH, code: string, showLog?: boolean) {
  * @param cwd script init pwd
  * @param needCwd whether need pwd when script exec sucessfully
  */
-async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?: string, needCwd?: boolean) {
+async function runParticalScript (ssh: NodeSSH, code: string, shebang: string, cwd?: string, needCwd?: boolean) {
   const remote = await getTempfile(ssh)
   const script = normalizeScript(code, shebang, cwd, needCwd)
 
@@ -176,7 +176,7 @@ async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?:
   fs.writeFileSync(src, script, 'utf8')
   await uploadFiles(ssh, [{ local: src, remote }])
   await chmodX(ssh, remote)
-  const result = await ssh.exec(remote)
+  const result = await ssh.exec(remote, [])
   return result
 }
 
@@ -186,7 +186,7 @@ async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?:
  * @param config script command config
  * @param showLog whether show exec log
  */
-export async function runScript (ssh: SSH, config: IScriptConfig, showLog?: boolean) {
+export async function runScript (ssh: NodeSSH, config: IScriptConfig, showLog?: boolean) {
   const shebang = getShebang(config)
   const cmds = analyzeScript(config.script)
   let lastCwd = config.cwd

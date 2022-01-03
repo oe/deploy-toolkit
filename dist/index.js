@@ -1,12 +1,23 @@
 "use strict";
-function __export(m) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    Object.defineProperty(o, k2, { enumerable: true, get: function() { return m[k]; } });
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __exportStar = (this && this.__exportStar) || function(m, exports) {
+    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.addGitTag = exports.findFileRecursive = exports.runShellCmd = exports.deploy = void 0;
 var ssh_1 = require("./ssh");
-exports.deploy = ssh_1.default;
-__export(require("./ssh"));
+Object.defineProperty(exports, "deploy", { enumerable: true, get: function () { return __importDefault(ssh_1).default; } });
+__exportStar(require("./ssh"), exports);
 var utils_1 = require("./utils");
-exports.runShellCmd = utils_1.runShellCmd;
-exports.findFileRecursive = utils_1.findFileRecursive;
-exports.addGitTag = utils_1.addGitTag;
+Object.defineProperty(exports, "runShellCmd", { enumerable: true, get: function () { return utils_1.runShellCmd; } });
+Object.defineProperty(exports, "findFileRecursive", { enumerable: true, get: function () { return utils_1.findFileRecursive; } });
+Object.defineProperty(exports, "addGitTag", { enumerable: true, get: function () { return utils_1.addGitTag; } });
