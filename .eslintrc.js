@@ -20,4 +20,7 @@ module.exports = {
     semi: "off",
     "@typescript-eslint/semi": ["error", "never"],
   },
-};
+  env: {
+    node: true
+  }
+}
