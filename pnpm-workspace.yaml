@@ -1,0 +1,6 @@
+packages:
+  - '.'
+# Use ssh2's portable implementation; native accelerators are optional.
+allowBuilds:
+  cpu-features: false
+  ssh2: false

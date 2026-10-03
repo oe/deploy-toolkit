@@ -1,29 +1,22 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
     "sourceMap": false,
-    "declaration": true,
     "strict": true,
     "noImplicitReturns": true,
-    "noImplicitAny": false,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
-    "target": "esnext",
+    "target": "es2022",
     "allowJs": false,
-    "baseUrl": "./",
     "lib": [
-      "dom",
-      "es7"
+      "es2022"
     ],
-    "paths": {
-      "src/*": [
-        "src/"
-      ]
-    }
+    "types": [
+      "node"
+    ],
+    "noEmit": true,
+    "verbatimModuleSyntax": true
   },
   "include": [
     "./src/**/*.ts"

@@ -1,356 +1,181 @@
-<h1 align="center">Deploy toolkit</h1>
+# Deploy toolkit
 
-<h5>A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via `ssh`,  can be used to deploy stuffs or CI/CD. </h5>
+A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and shell scripts. Useful for deploying build output to a few servers from a Node.js script or CI job.
 
-<div align="center">
-  <a href="https://travis-ci.org/evecalm/deploy-toolkit">
-    <img src="https://travis-ci.org/evecalm/deploy-toolkit.svg?branch=master" alt="Travis CI">
-  </a>
-  <a href="#readme">
-    <img src="https://badges.frapsoft.com/typescript/code/typescript.svg?v=101" alt="code with typescript" height="20">
-  </a>
-  <a href="#readme">
-    <img src="https://badge.fury.io/js/deploy-toolkit.svg" alt="npm version" height="18">
-  </a>
-  <a href="https://www.npmjs.com/package/deploy-toolkit">
-    <img src="https://img.shields.io/npm/dm/deploy-toolkit.svg" alt="npm version" height="18">
-  </a>
-</div>
+[![CI](https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/deploy-toolkit.svg)](https://www.npmjs.com/package/deploy-toolkit)
 
-All actions are run in sequence, and you can set allow failure for specific action(wont stop the sequence even it failed).
+## Requirements and status
 
-## Exmaple
+Version 0.2.0 requires **Node.js 20 or 22 and later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
 
-```js
-import { deploy, runShellCmd,  findFileRecursive, addGitTag} from 'deploy-toolkit'
-import fs from 'fs'
-import path from 'path'
-
-const config = {
-  // ssh connection config
-  ssh: {
-    host: 'my.server.com',
-    username: 'fancy',
-    // // use password if you prefer password
-    // password: '123456'
-    // or private ssh key file path(or key text content)
-    //   use ~ as user homedir
-    privateKey: '~/.ssh/my-private-key'
-    // set passphrase if private key is encrypted
-    passphrase: '3344',
-  },
-  // whether to show command execution logs
-  log: true,
-  // commands sequence, will execute by its order
-  cmds: [
-    {
-      // exec command
-      type: 'cmd',
-      // command arguments list
-      args: ['mkdir', '-p', 'saiya/test'],
-      // command work directory on remote server
-      cwd: '/home/user'
-    },
-    {
-      type: 'cmd',
-      args: ['pm2', 'stop', 'my-fancy-app'],
-      // if pm2 stop failed, still continue to run the following cmds
-      allowFailure: true
-    },
-    {
-      type: 'cmd',
-      args: ['ls', 'saiya', '-l'],
-      cwd: '/home/user'
-    },
-    {
-      // upload files
-      type: 'upload',
-      // files' glob pattern, could also be a file/dir path
-      src: path.join(__dirname, '../*/*.json'),
-      // if upload multi files with glob pattern, srcPrefix is needed to determine to saved path on server
-      //  no need if `src` is certain a file/dir path
-      srcPrefix: path.join(__dirname, '..'),
-      // server directory path to save the files
-      dest: '/home/kk/saiya'
-    },
-    {
-      // download file, only support download a single file at a time
-      type: 'download',
-      // source file path on server
-      src: '/home/kk/start.sh',
-      // saved path in local
-      dest: path.join(__dirname, 'gg.sh')
-    }
-  ]
-}
-
-// run commands
-deploy(config).then(() => {
-  console.log('all done!')
-}).catch((err) => {
-  console.warn(err)
-})
-
-// run local shell commands
-runShellCmd('ls', ['-l']).then((res) => {
-  console.log('ls response', res)
-})
-
-// find closest package.json file full path, return '' if not found
-console.log(findFileRecursive('package.json'))
-// found closest .git dir full path from current work dir, return '' if not found
-console.log(findFileRecursive('.git', process.cwd(), true))
-
-// add git tag & puth to remote, use `v${package.version}` in package.json as tag name by default
-addGitTag().then((tagName) => {
-  console.log('done, has added tag', tagName)
-})
-
-// sepecify the tag name
-addGitTag('v10.0.0-beta').then(() => {
-  console.log('done')
-})
-
-```
+This project is suited to maintenance of its small existing API. For deployment inventories, rolling releases, rollback orchestration, or configuration management, use a dedicated tool such as Ansible. See [the maintenance assessment](MAINTENANCE.md) and [migration notes](CHANGELOG.md).
 
 ## Install
 
 ```sh
-yarn add deploy-toolkit
+pnpm add -D deploy-toolkit
 ```
 
-or
+To develop from a checkout, use Node.js 22.12 or later and run `pnpm install --frozen-lockfile && pnpm build`.
 
-```
-npm i deploy-toolkit -D
-```
+## Deploy
 
-## Usage
-
-### `deploy`
-
-Deploy stuffs to remote server with simple json config, you can upload/download/execute-command on remote server.
-
-```typescript
-// import the main function like this
-import { deploy } from 'deploy-toolkit'
-// // you can import the following types if you are using typescript
-// import { IDeployConfig } from 'deploy-toolkit'
-
-function deploy(deployCmd: IDeployConfig): Promise<void>
-
-/** deploy confgi */
-interface IDeployConfig {
-    /** ssh connection config */
-    ssh: ISshConfig
-    /** whether to show log when executing cmds */
-    log?: boolean
-    /** command sequence */
-    cmds: ICmds
-}
-
-/** SSH Connection config */
-interface ISshConfig {
-    /** Hostname or IP address of the server. */
-    host: string
-    /** Port number of the server. */
-    port?: number
-    /** Username for authentication. */
-    username?: string
-    /** Password for password-based user authentication. */
-    password?: string
-    /** file path of the private key, or the private key text content */
-    privateKey?: string
-    /** For an encrypted private key, this is the passphrase used to decrypt it. */
-    passphrase?: string
-    /** any other options from ssh2 ConnectConfig */
-    [k: string]: any
-}
-/** commands sequence */
-type ICmds = ICmd[]
-
-/** command */
-type ICmd = IUploadConfig | IDownloadConfig | IRunConfig | IScriptConfig
-
-/** upload config */
-interface IUploadConfig {
-    type: 'upload'
-    /** source file(in local), could be a specified file/directory path or a glob pattern */
-    src: string
-    /** if src is a glob pattern, then srcPrefix is need, to determine the path save on server. omit it if src is a spicifed file/directory path */
-    srcPrefix?: string
-    /** destination path(on server), should be a file path if src is a specified file, or a directory for other situations */
-    dest: string
-    /** allow failure, so the command sequence will continue to run even this failed */
-    allowFailure?: boolean
-}
-
-/** download config */
-interface IDownloadConfig {
-    type: 'download'
-    /** source file path(on server) */
-    src: string
-    /** dest save path(in local) */
-    dest: string
-    /** allow failure, so the command sequence will continue to run even this failed */
-    allowFailure?: boolean
-}
-
-/** custom command */
-interface IRunConfig {
-    type: 'cmd'
-    /** cmd arguments */
-    args: string[]
-    /** cmd work directory */
-    cwd?: string
-    /** options */
-    options?: {
-        /** another way to set work directory, will be rewrite if set outside */
-        cwd?: string
-        /** extra options for ssh2.exec */
-        options?: Object
-        /** input for the command */
-        stdin?: string
-        /** output */
-        stream?: 'stdout' | 'stderr' | 'both'
-        /** stdout event */
-        onStdout?: ((chunk: Buffer) => void)
-        /** stderror event */
-        onStderr?: ((chunk: Buffer) => void)
-    }
-    /** allow failure, so the command sequence will continue to run even this failed */
-    allowFailure?: boolean
-}
-
-
-/**
- * custom script
- */ 
-interface IScriptConfig {
-  type: 'script'
-  /* custom shebang, default #!/usr/bin/env bash */
-  shebang?: string
-  /* shell name, default bash. if shebang specified, then shell will be used */
-  shell?: string
-  /* script content, you can use DOWNLOAD/UPLOAD keywords to download or upload file */
-  script: string
-  /* initial work dir */
-  cwd?: string
-  /** allow failure, so the command sequence will continue to run even this failed */
-  allowFailure?: boolean
-}
-```
-
-#### Example
 ```js
-import { deploy, IDeployConfig, runShellCmd, findFileRecursive } from '../src/'
-import path from 'path'
+const { deploy } = require('deploy-toolkit')
+const path = require('node:path')
 
-const config: IDeployConfig = {
-  ssh: {
-    host: '10.213.85.1',
-    username: 'deploy',
-    password: 'passw0rp!'
-  },
-  log: true,
-  cmds: [
-    {
-      type: 'cmd',
-      args: ['mkdir', '-p', 'saiya/test'],
-      cwd: '~/Documents'
+async function main() {
+  await deploy({
+    ssh: {
+      host: 'example.com',
+      username: 'deploy',
+      privateKey: '~/.ssh/deploy_key',
+      // An encrypted key can use passphrase: process.env.SSH_PASSPHRASE.
+      // Password authentication can use password: process.env.SSH_PASSWORD.
     },
-    {
-      type: 'download',
-      src: '/home/deploy/start.sh',
-      dest: path.join(__dirname, 'start.sh')
-    },
-    {
-      type: 'upload',
-      src: '/home/user1/Documents/Hobby/project1/dist',
-      dest: '/home/deploy/Documents/project1'
-    },
-    {
-      type: 'script',
-      script: `
-      cd ~
-      rm -rf Document/project1
-      UPLOAD /home/user1/Documents/Hobby/project1/dist > /home/deploy/Documents/project1
-      cd Document/project1
-      npm start
-      DOWNLOAD  /home/deploy/Documents/project1/logs/latest.log > /home/user1/Documents/Hobby/logs/latest.log
-      echo "done"
-      `
-    }
-  ]
+    log: true,
+    cmds: [
+      { type: 'cmd', args: ['mkdir', '-p', '/srv/app'] },
+      { type: 'cmd', args: ['pm2', 'stop', 'app'], allowFailure: true },
+      { type: 'upload', src: path.resolve('dist'), dest: '/srv/app' },
+      { type: 'cmd', args: ['pm2', 'start', 'app'], cwd: '/srv/app' },
+      { type: 'download', src: '/srv/app/deploy.log', dest: path.resolve('deploy.log') },
+    ],
+  })
 }
 
-
-deploy(config).then(() => {
-  console.log('all done')
+main().catch(error => {
+  console.error(error)
+  process.exitCode = 1
 })
-
 ```
+
+Actions run in order. A failed action rejects `deploy()` and stops the sequence. Set `allowFailure: true` on an action to continue after its failure. The SSH connection is closed after success, action failure, or connection failure. Configurations are reusable and are not modified by execution.
+
+The package supports both CommonJS require and native ES modules, with matching TypeScript declarations. Existing `dist/*` imports and the native ESM default API object remain available. ES module and TypeScript consumers can use named imports:
+
+```ts
+import { deploy, type IDeployConfig } from 'deploy-toolkit'
+```
+
+### Connection options
+
+`ssh` accepts the [node-ssh connection options](https://github.com/steelbrain/node-ssh), including ssh2 options such as `hostVerifier`, `hostHash`, `agent`, and `readyTimeout`. `host` is required. `privateKey` accepts PEM key contents or a local file path; `privateKeyPath` explicitly selects a file path. Both path forms support `~/`. Choose one key option.
+
+### Commands
+
+```js
+{
+  type: 'cmd',
+  args: ['printf', '%s', 'a value containing spaces'],
+  cwd: '~/app',
+  options: {
+    stdin: 'optional input',
+    execOptions: { pty: false },
+    onStdout: chunk => process.stdout.write(chunk),
+    onStderr: chunk => process.stderr.write(chunk),
+  },
+}
+```
+
+The first argument is the command; remaining arguments are shell-escaped by node-ssh. `cwd` overrides `options.cwd`; `~/` resolves on the remote server. Success is determined by exit code 0, so stderr warnings alone do not cause failure. A nonzero exit, signal, or missing exit status causes failure regardless of `options.stream`.
+
+`options.options` remains an alias for `execOptions` for compatibility. `options.stream` remains accepted; output callbacks receive both streams and the deployment promise returns no command result.
+
+### Uploads and downloads
+
+```js
+// A literal file maps directly to dest.
+{ type: 'upload', src: '/local/app/config.json', dest: '/srv/app/config.json' }
+
+// A literal directory uploads its contents recursively.
+{ type: 'upload', src: '/local/app/dist', dest: '/srv/app' }
+
+// A glob keeps paths relative to srcPrefix.
+{
+  type: 'upload',
+  src: '/local/app/dist/**/*.js',
+  srcPrefix: '/local/app/dist',
+  dest: '/srv/app',
+}
+
+// Downloads support one file at a time.
+{ type: 'download', src: '/srv/app/deploy.log', dest: '/local/deploy.log' }
+```
+
+A glob that matches multiple files requires `srcPrefix`. With a prefix, every matched file must be inside it. Remote destination paths use POSIX separators. A glob matching a single directory still uploads it recursively. Empty matches and unsuccessful directory transfers fail the action. Directory transfers retain five concurrent uploads; file lists retain parallel uploads across all matched files.
+
+### Scripts with file transfers
+
+```js
+{
+  type: 'script',
+  cwd: '~/app',
+  script: `
+    echo starting
+    UPLOAD /local/app/dist > /srv/app
+    cd /srv/app
+    ./restart.sh
+    DOWNLOAD /srv/app/deploy.log > /local/deploy.log
+    echo done
+  `,
+}
+```
+
+Script text supports standalone `UPLOAD source > destination` and `DOWNLOAD source > destination` lines. For glob uploads, use `UPLOAD sourcePrefix:sourcePattern > destination`. These directives use literal paths, do not expand shell variables, and do not support quoted paths or paths containing `:`/`>`; use separate upload/download actions for those cases.
+
+Shell portions between transfer directives execute as separate temporary scripts. The current directory carries across portions; shell variables, functions, and other process state do not. Each portion uses `set -e` so ordinary command failures stop it; standard shell exceptions for conditions and pipelines still apply. Use explicit checks or Bash `set -o pipefail` when pipeline failures must be detected.
+
+Set `shell: 'sh'` or `shebang: '#!/bin/sh'` to change the default `#!/usr/bin/env bash`. A shebang in the script takes priority. Local and remote temporary scripts are removed on success and attempted on failure.
+
+## Local utilities
 
 ### `runShellCmd`
 
-run shell command on local machine, a promise wrapper of node `child_process.spawn`, by default run the command in cwd `process.cwd()`
+A promise wrapper of Node's `child_process.spawn`. Returns stdout when the process closes with code 0 and rejects with a string on spawn failure, nonzero exit, or signal termination, preserving the existing API.
 
-```typescript
-import { runShellCmd } from 'deploy-toolkit'
-// return promise with execution result
-function runShellCmd(cmd: string, options?: SpawnOptions): Promise<string>
-function runShellCmd(
-    cmd: string,
-    args?: string[],
-    options?: SpawnOptions
-): Promise<string>
-
-// check nodejs doc http://nodejs.org/api/child_process.html#child_process_child_process_spawn_command_args_options for detail explains
-interface SpawnOptions {
-    cwd?: string // default is process.cwd()
-    env?: any
-    stdio?: any
-    detached?: boolean
-    uid?: number
-    gid?: number
-    shell?: boolean | string
-    windowsVerbatimArguments?: boolean
-    windowsHide?: boolean
-}
+```js
+const { runShellCmd } = require('deploy-toolkit')
+await runShellCmd('git', ['status', '--short'], { shell: false })
+await runShellCmd('node', ['build.js'], { cwd: '/local/app', stdio: 'inherit', shell: false })
+// Shell expressions keep working with the legacy default.
+await runShellCmd('pnpm build && pnpm verify')
 ```
 
-#### findFileRecursive
+Overloads: `runShellCmd(command, options?)` and `runShellCmd(command, args?, options?)`. Options are Node's `SpawnOptions`; the default cwd is `process.cwd()` and the default `shell` remains `true`. Use `{ shell: false }` when arguments should be passed literally, especially for values from external input; shell mode concatenates arguments and interprets shell syntax.
 
-find a file/dir recursively from specified dir to the root until found, return `''` if not found.
+### `findFileRecursive`
 
-```typescript
-import { findFileRecursive } from 'deploy-toolkit'
-/**
- * find a file(dir) recursive( aka try to find package.json, node_modules, etc.)
- * @param fileName file name(s)(or dir name(s) if isDir is true), if an array, return the first matched one
- * @param dir the initial dir path to find, use `process.cwd()` by default
- * @param isDir whether to find a dir, default false
- */
-function findFileRecursive(
-    fileName: string | string[],
-    dir?: string,
-    isDir?: boolean
-): string
+Searches the given directory and its ancestors for a file (or directory when `isDir` is true). Returns an absolute path or `''` when absent. Candidate arrays remain unchanged and are tested in order at each directory.
 
-// e.g. find babel config file path
-
-const babelRcPath = findFileRecursive([
-    '.babelrc',
-    '.babelrc.js',
-    'babel.config.js'
-])
+```js
+const { findFileRecursive } = require('deploy-toolkit')
+findFileRecursive('package.json')
+findFileRecursive(['babel.config.js', '.babelrc'], process.cwd())
+findFileRecursive('.git', process.cwd(), true)
 ```
 
-#### addGitTag
+### `addGitTag`
 
-add git tag and push it to remote, you can use it on `postbuild` or `postpublish`.  
-use `v${package.version}` in package.json as tag name by default, return the `tagName` after tag push
+Creates a Git tag and pushes that tag to `origin`. The default name is `v${package.version}` from the nearest package.json. It rejects if validation, tagging, or pushing fails; a failed push can leave the local tag in place. This helper is never called automatically by build or publication hooks.
 
-```typescript
-function addGitTag(tagName?: string): Promise<string>
+```js
+const { addGitTag } = require('deploy-toolkit')
+await addGitTag()
+await addGitTag('v1.0.0-beta')
 ```
+
+## Development
+
+Use the pinned pnpm version (`packageManager` in package.json), for example via Corepack. `pnpm test:watch` starts interactive Vitest; `pnpm build` checks source, tests, and configs before generating bundles and declarations.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm build
+pnpm test
+pnpm audit
+pnpm test:package
+```
+
+The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and Vitest 5. Build/test CI validates Node 22.12, current Node 22, and Node 24; an additional tarball consumer job verifies runtime support on Node 20. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. Vite produces ESM (`dist/index.js`) and CommonJS (`dist/index.cjs`) bundles with runtime dependencies externalized. TypeScript emits declarations for both import and require consumers. `pnpm pack` builds `dist` automatically; generated output is not committed. `pnpm test:package` installs that tarball into an isolated consumer and verifies both runtimes and NodeNext declaration resolution. npm packages contain `dist`, documentation, license, and package metadata.

@@ -1,13 +1,12 @@
-// 自动上传安装包到测试服务器
-import SSH from 'node-ssh'
+import type { NodeSSH as SSH, Config } from 'node-ssh'
 import os from 'os'
 
-import { upload, IUploadConfig } from './upload'
-import { download, IDownloadConfig } from './download'
-import { runSSHCmd, IRunConfig } from './cmd'
-import { runScript, IScriptConfig } from './script'
+import { upload, type IUploadConfig } from './upload.js'
+import { download, type IDownloadConfig } from './download.js'
+import { runSSHCmd, type IRunConfig } from './cmd.js'
+import { runScript, type IScriptConfig } from './script.js'
 
-export {
+export type {
   IUploadConfig,
   IDownloadConfig,
   IRunConfig,
@@ -20,7 +19,7 @@ export type ICmd = IUploadConfig | IDownloadConfig | IRunConfig | IScriptConfig
 export type ICmds = ICmd[]
 
 /** SSH Connection config */
-export interface ISshConfig {
+export interface ISshConfig extends Config {
   /** Hostname or IP address of the server. */
   host: string
   /** Port number of the server. */
@@ -49,10 +48,11 @@ export interface IDeployConfig {
 
 /** entrance */
 export default async function deploy (deployCmd: IDeployConfig) {
-  let ssh: SSH
+  const { NodeSSH } = await import('node-ssh')
+  const ssh = new NodeSSH()
   try {
     const showLog = !!deployCmd.log
-    ssh = await getSshClient(deployCmd.ssh, showLog)
+    await connectSshClient(ssh, deployCmd.ssh, showLog)
     const cmds = deployCmd.cmds
     for (let index = 0; index < cmds.length; index++) {
       const cmd = cmds[index]
@@ -84,41 +84,25 @@ export default async function deploy (deployCmd: IDeployConfig) {
         throw error
       }
     }
-    // close connection
+  } finally {
     ssh.dispose()
-
-  } catch (error) {
-    // close connection even error occured 
-    if (ssh && ssh.dispose) {
-      ssh.dispose()
-    }
-    throw error
   }
 }
 
 /** get SSH object */
-async function getSshClient (config: ISshConfig, showLog: boolean) {
-  const ssh = new SSH()
+async function connectSshClient (ssh: SSH, givenConfig: ISshConfig, showLog: boolean) {
+  const config = { ...givenConfig }
   if (showLog) {
     console.log(`[deploy][connnect] connect to \`${config.host}\` as user \`${config.username}\``)
   }
-  // if privateKey is a file path and start with ~
-  //    replace ~ with user homedir
-  if (config.privateKey &&
-    !config.privateKey.includes('BEGIN') &&
-    config.privateKey.charAt(0) === '~') {
-    config.privateKey = config.privateKey.replace('~', os.homedir())
+  // Preserve the legacy API where privateKey accepts a file path or PEM text.
+  if (config.privateKey && !config.privateKey.includes('BEGIN')) {
+    if (config.privateKeyPath) throw new TypeError('Specify only one of privateKey and privateKeyPath')
+    config.privateKeyPath = config.privateKey
+    delete config.privateKey
+  }
+  if (config.privateKeyPath) {
+    config.privateKeyPath = config.privateKeyPath.replace(/^~(?=\/|$)/, os.homedir())
   }
   await ssh.connect(config)
-  return ssh
 }
-
-
-
-
-
-
-
-
-
-

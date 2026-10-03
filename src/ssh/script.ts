@@ -1,9 +1,10 @@
-import SSH from 'node-ssh'
+import type { NodeSSH as SSH } from 'node-ssh'
 import fs from 'fs'
-import { upload, uploadFiles, IUploadConfig } from './upload'
-import { download, IDownloadConfig } from './download'
+import { upload, uploadFiles, type IUploadConfig } from './upload.js'
+import { download, type IDownloadConfig } from './download.js'
 import path from 'path'
 import os from 'os'
+import sshexec from './sshexec.js'
 
 export interface IScriptConfig {
   type: 'script'
@@ -24,7 +25,7 @@ export interface IScriptConfig {
  */
 function getShebang (config: IScriptConfig) {
   const text = config.script.trim()
-  if (/^#!/.test(text)) return text
+  if (/^#!/.test(text)) return text.split('\n')[0]
   // default 
   let shebang = '#!/usr/bin/env bash'
   if (config.shebang) {
@@ -48,7 +49,9 @@ function normalizeScript (script: string, shebang: string, cwd?: string, needCwd
   if (!/^#!/.test(result[0])) {
     result.unshift(shebang)
   }
-  if (cwd) result.splice(1, 0, `cd "${cwd}"`)
+  // Fail before appending pwd can hide an earlier command's nonzero exit.
+  result.splice(1, 0, 'set -e')
+  if (cwd) result.splice(2, 0, `cd -- ${shellQuote(cwd)}`)
   if (needCwd) {
     result.push('pwd')
   }
@@ -60,7 +63,11 @@ function normalizeScript (script: string, shebang: string, cwd?: string, needCwd
  * @param result output result of the script exec
  */
 function getLastCwd (result: string) {
-  return result.split('\n').pop() as string
+  return result.replace(/\r?\n$/, '').split('\n').pop() as string
+}
+
+function shellQuote (value: string) {
+  return "'" + value.replace(/'/g, "'\\''") + "'"
 }
 
 /**
@@ -68,8 +75,8 @@ function getLastCwd (result: string) {
  * @param ssh ssh handler
  */
 async function getTempfile (ssh: SSH) {
-  const result = await ssh.exec('mktemp')
-  return result
+  const result = await sshexec(ssh, 'mktemp')
+  return result.stdout.trim()
 }
 
 /**
@@ -78,7 +85,7 @@ async function getTempfile (ssh: SSH) {
  * @param p file path
  */
 async function chmodX (ssh: SSH, p: string) {
-  const result = await ssh.exec('chmod', ['+x', p])
+  const result = await sshexec(ssh, 'chmod', ['+x', p])
   return result
 }
 
@@ -86,6 +93,8 @@ async function chmodX (ssh: SSH, p: string) {
  * analyze script text, extra DOWNLOAD/UPLOAD cmd
  * @param script script text
  */
+type ScriptPart = { type: 'upload' | 'download', code: string } | { type: 'cmd', codes: string[] }
+
 function analyzeScript (script: string) {
   return script.trim().split('\n').reduce((acc, cur) => {
     if (/^\s*DOWNLOAD\b(.+)$/.test(cur)) {
@@ -103,7 +112,7 @@ function analyzeScript (script: string) {
       if (last && last.type === 'cmd') {
         last.codes.push(cur)
       } else {
-        const cmd = {
+        const cmd: ScriptPart = {
           type: 'cmd',
           codes: [cur]
         }
@@ -111,7 +120,7 @@ function analyzeScript (script: string) {
       }
     }
     return acc
-  }, [] as any[])
+  }, [] as ScriptPart[])
 }
 
 /**
@@ -122,9 +131,9 @@ function getFileTransParams (str: string) {
   const reg = /^(?:([^:]+):)?([^:]+)\s*>\s*(\S+)$/
   if (reg.test(str.trim())) {
     return {
-      srcPrefix: RegExp.$1,
-      src: RegExp.$2,
-      dest: RegExp.$3
+      srcPrefix: RegExp.$1.trim() || undefined,
+      src: RegExp.$2.trim(),
+      dest: RegExp.$3.trim()
     }
   }
   throw new Error(`[deploy-toolkit]invalid upload/download config in script: ${str}`)
@@ -168,16 +177,29 @@ async function cmdDownload (ssh: SSH, code: string, showLog?: boolean) {
  * @param needCwd whether need pwd when script exec sucessfully
  */
 async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?: string, needCwd?: boolean) {
-  const remote = await getTempfile(ssh)
-  const script = normalizeScript(code, shebang, cwd, needCwd)
-
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dt-'))
-  const src = path.join(dir, 'script')
-  fs.writeFileSync(src, script, 'utf8')
-  await uploadFiles(ssh, [{ local: src, remote }])
-  await chmodX(ssh, remote)
-  const result = await ssh.exec(remote)
-  return result
+  let remote: string | undefined
+  let completed = false
+  try {
+    remote = await getTempfile(ssh)
+    const src = path.join(dir, 'script')
+    fs.writeFileSync(src, normalizeScript(code, shebang, cwd, needCwd), 'utf8')
+    await uploadFiles(ssh, [{ local: src, remote }])
+    await chmodX(ssh, remote)
+    const result = await sshexec(ssh, shellQuote(remote), [], { noTrim: true })
+    completed = true
+    return result.stdout
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+    if (remote) {
+      try {
+        await sshexec(ssh, 'rm', ['-f', '--', remote])
+      } catch (error) {
+        // Preserve the original error if execution or upload already failed.
+        if (completed) throw error
+      }
+    }
+  }
 }
 
 /**
@@ -188,8 +210,13 @@ async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?:
  */
 export async function runScript (ssh: SSH, config: IScriptConfig, showLog?: boolean) {
   const shebang = getShebang(config)
+  if (!/^#![^\r\n]+$/.test(shebang)) throw new TypeError('Shebang must be a single line')
   const cmds = analyzeScript(config.script)
   let lastCwd = config.cwd
+  if (lastCwd && /^~(?:\/|$)/.test(lastCwd)) {
+    const home = await sshexec(ssh, 'printf "%s" "$HOME"')
+    lastCwd = path.posix.join(home.stdout, lastCwd.slice(1))
+  }
   for (let index = 0; index < cmds.length; index++) {
     const cmd = cmds[index]
     if (cmd.type === 'download') await cmdDownload(ssh, cmd.code, showLog)
