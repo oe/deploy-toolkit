@@ -23,5 +23,5 @@
 - Build with TypeScript 7 and Vite 8 library mode, producing ESM/CommonJS bundles, source maps, and declarations.
 - Run the 21 regression tests in Vitest 5 with strict TypeScript checking.
 - Update Node 22 type definitions and lock both node-ssh and the local SSH test server to ssh2 1.17.0.
-- Add an offline tarball consumer check for both runtimes and NodeNext declarations.
+- Add an tarball consumer check for both runtimes and NodeNext declarations.
 - Add Node 22/24 CI, regression tests, and monthly grouped dependency updates.

@@ -28,8 +28,8 @@ try {
     name: 'deploy-toolkit-consumer', private: true,
     dependencies: { 'deploy-toolkit': `file:${tarball}` },
   }))
-  // Resolve only from the store populated by the frozen project install.
-  run(pnpmCommand, [...pnpmPrefix, 'install', '--prod', '--offline', '--ignore-scripts',
+  // A consumer needs registry metadata to resolve the package's public dependency ranges.
+  run(pnpmCommand, [...pnpmPrefix, 'install', '--prod', '--ignore-scripts',
     '--store-dir', store, '--package-import-method=copy'])
   const check = `
     for (const name of ['deploy', 'runShellCmd', 'findFileRecursive', 'addGitTag']) {
