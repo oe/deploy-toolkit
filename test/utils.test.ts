@@ -7,21 +7,33 @@ import { runShellCmd, findFileRecursive, addGitTag } from '../src/index.js'
 
 test('local commands preserve literal arguments and drain all output', async () => {
   const argument = 'a b; echo injected $(echo injected)'
-  assert.equal(await runShellCmd(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', argument]), argument)
-  const output = await runShellCmd(process.execPath, ['-e', 'process.stdout.write("x".repeat(200000))'])
+  assert.equal(await runShellCmd(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', argument], { shell: false }), argument)
+  const output = await runShellCmd(process.execPath, ['-e', 'process.stdout.write("x".repeat(200000))'], { shell: false })
   assert.equal(output.length, 200000)
 })
 
 test('local failures include stderr, missing executables, and signals', async () => {
-  await assert.rejects(runShellCmd(process.execPath, ['-e', 'console.error("failure");process.exit(7)']), /7.*failure/s)
-  await assert.rejects(runShellCmd('deploy-toolkit-missing-executable'), { code: 'ENOENT' })
-  await assert.rejects(runShellCmd(process.execPath, ['-e', 'process.kill(process.pid,"SIGTERM")']), /SIGTERM/)
+  await assert.rejects(runShellCmd(process.execPath, ['-e', 'console.error("failure");process.exit(7)'], { shell: false }), error => {
+    assert.equal(typeof error, 'string')
+    assert.match(String(error), /error code: 7\nfailure/)
+    return true
+  })
+  await assert.rejects(runShellCmd('deploy-toolkit-missing-executable', { shell: false }), /ENOENT/)
+  await assert.rejects(runShellCmd(process.execPath, ['-e', 'process.kill(process.pid,"SIGTERM")'], { shell: false }), /SIGTERM/)
 })
 
 test('inherited stdio and explicit shell mode work', async () => {
-  assert.equal(await runShellCmd(process.execPath, ['-e', ''], { stdio: 'inherit' }), '')
+  assert.equal(await runShellCmd(process.execPath, ['-e', ''], { stdio: 'inherit', shell: false }), '')
+  assert.equal(await runShellCmd('printf legacy && printf shell'), 'legacyshell')
   assert.equal(await runShellCmd('printf shell', { shell: true }), 'shell')
   assert.equal(await runShellCmd('printf shell', undefined, { shell: true }), 'shell')
+})
+
+test('split UTF-8 output is decoded without corrupting characters', async () => {
+  const output = await runShellCmd(process.execPath, ['-e',
+    'process.stdout.write(Buffer.from([0xe4,0xbd]));setTimeout(()=>process.stdout.write(Buffer.from([0xa0])),20)'
+  ], { shell: false })
+  assert.equal(output, '你')
 })
 
 test('ancestor lookup preserves candidate arrays and handles relative paths', t => {
@@ -43,7 +55,7 @@ test('tag helper pushes only the selected tag to an isolated local origin', asyn
   const origin = path.join(root, 'origin.git')
   await runShellCmd('git', ['init', '--bare', origin])
   await runShellCmd('git', ['init', repository])
-  const options = { cwd: repository }
+  const options = { cwd: repository, shell: false }
   await runShellCmd('git', ['config', 'user.name', 'Toolkit test'], options)
   await runShellCmd('git', ['config', 'user.email', 'test@example.invalid'], options)
   fs.writeFileSync(path.join(repository, 'package.json'), '{"version":"1.2.3"}')
@@ -54,6 +66,6 @@ test('tag helper pushes only the selected tag to an isolated local origin', asyn
   process.chdir(path.join(repository, 'nested'))
   assert.equal(await addGitTag(), 'v1.2.3')
   assert.equal(await runShellCmd('git', ['--git-dir', origin, 'tag']), 'v1.2.3\n')
-  await assert.rejects(addGitTag('invalid tag'), /command failed/)
+  await assert.rejects(addGitTag('invalid tag'), /error code/)
   assert.equal(await runShellCmd('git', ['tag']), 'v1.2.3\n')
 })

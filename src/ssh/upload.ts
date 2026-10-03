@@ -1,7 +1,6 @@
 import path from 'path'
-import { glob } from 'glob'
 import fs from 'fs'
-import { type NodeSSH as SSH } from 'node-ssh'
+import type { NodeSSH as SSH } from 'node-ssh'
 
 /** upload config */
 export interface IUploadConfig {
@@ -52,6 +51,8 @@ async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
   const failed: string[] = []
   const success = await ssh.putDirectory(srcDir, destDir, {
     recursive: true,
+    // Preserve node-ssh 5's directory upload concurrency.
+    concurrency: 5,
     tick: function (localPath, remotePath, error) {
       if (error) {
         failed.push(`[error]failed to push ${localPath} to ${remotePath}, because of ${error.message}`)
@@ -66,7 +67,8 @@ async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
 
 /** upload multi files */
 export async function uploadFiles (ssh: SSH, pairs: IFilePairs) {
-  await ssh.putFiles(pairs)
+  // node-ssh 5 uploaded all matched files concurrently; newer versions default to 1.
+  await ssh.putFiles(pairs, { concurrency: Math.max(1, pairs.length) })
 }
 
 function getFilePairs (srcFiles: string[], cmd: IUploadConfig): IFilePairs {
@@ -82,7 +84,6 @@ function getFilePairs (srcFiles: string[], cmd: IUploadConfig): IFilePairs {
     if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
       throw new Error(`Upload source ${local} is outside srcPrefix ${cmd.srcPrefix}`)
     }
-    if (!fs.statSync(local).isFile()) throw new Error(`Upload pattern matched a directory: ${local}`)
     return {
       local,
       remote: path.posix.join(cmd.dest, relative.split(path.sep).join('/'))
@@ -93,7 +94,13 @@ function getFilePairs (srcFiles: string[], cmd: IUploadConfig): IFilePairs {
 /** Match literal paths first so file names containing glob syntax remain usable. */
 async function getLocalFile (pattern: string): Promise<string[]> {
   if (fs.existsSync(pattern)) return [path.resolve(pattern)]
+  const { glob } = await import('glob')
   const files = await glob(pattern, { absolute: true, nodir: true })
-  if (!files.length) throw new Error(`No files found for ${pattern}`)
+  if (!files.length) {
+    // A pattern matching one directory historically uploaded it recursively.
+    const matches = await glob(pattern, { absolute: true })
+    if (matches.length === 1 && fs.statSync(matches[0]).isDirectory()) return matches
+    throw new Error(`No files found for ${pattern}`)
+  }
   return files.sort()
 }

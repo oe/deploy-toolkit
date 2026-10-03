@@ -1,4 +1,4 @@
-import { type NodeSSH as SSH, type SSHExecCommandOptions, type SSHExecCommandResponse } from 'node-ssh'
+import type { NodeSSH as SSH, SSHExecCommandOptions, SSHExecCommandResponse } from 'node-ssh'
 import { posix } from 'path'
 
 interface ExecOptions extends SSHExecCommandOptions {
@@ -13,7 +13,14 @@ export default async function exec (ssh: SSH, cmd: string, args: string[] = [], 
     const home = await exec(ssh, 'printf "%s" "$HOME"')
     options.cwd = posix.join(home.stdout, options.cwd.slice(1))
   }
-  const result = await ssh.exec(cmd, args, { ...options, stream: 'both' })
+  let command = cmd
+  if (options.cwd) {
+    const cwd = "'" + options.cwd.replace(/'/g, "'\\''") + "'"
+    // node-ssh uses `cd ... ; command`, which still runs command if cd fails.
+    command = `cd -- ${cwd} && ${cmd}`
+    delete options.cwd
+  }
+  const result = await ssh.exec(command, args, { ...options, stream: 'both' })
   if (result.code !== 0 || result.signal) {
     throw new Error(`Remote command failed (${result.signal || result.code}): ${cmd}\n${result.stderr || result.stdout}`)
   }

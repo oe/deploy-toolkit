@@ -9,7 +9,7 @@ import { Server } from 'ssh2'
 import { NodeSSH, type SSHExecOptions, type SSHExecCommandResponse } from 'node-ssh'
 import type { AddressInfo } from 'node:net'
 import type { Connection } from 'ssh2'
-import { deploy } from '../src/index.js'
+import { deploy, type IDeployConfig } from '../src/index.js'
 
 type Execute = (command: string, args: string[], options: SSHExecOptions) => Promise<SSHExecCommandResponse>
 
@@ -27,15 +27,26 @@ test('repeated deployments preserve frozen command and connection configs', asyn
     calls.push({ command, args, options })
     return { code: 0, signal: null, stdout: 'ok', stderr: 'harmless warning' }
   })
-  const config = Object.freeze({
-    ssh: Object.freeze({ host: 'example.invalid', privateKey: '~/.ssh/example' }),
-    cmds: Object.freeze([Object.freeze({ type: 'cmd', args: Object.freeze(['printf', 'hello world']), cwd: '/tmp', options: Object.freeze({ cwd: '/' }) })])
-  })
+  const config: IDeployConfig = {
+    ssh: { host: 'example.invalid', privateKey: '~/.ssh/example' },
+    cmds: [{ type: 'cmd', args: ['printf', 'hello world'], cwd: '/tmp', options: { cwd: '/' } }]
+  }
+  Object.freeze(config.ssh)
+  for (const command of config.cmds) {
+    if (command.type === 'cmd') {
+      Object.freeze(command.args)
+      Object.freeze(command.options)
+    }
+    Object.freeze(command)
+  }
+  Object.freeze(config.cmds)
+  Object.freeze(config)
   await deploy(config)
   await deploy(config)
   assert.equal(disposed(), 2)
   assert.deepEqual(calls.map(call => call.args), [['hello world'], ['hello world']])
-  assert.equal(calls[0].options.cwd, '/tmp')
+  assert.equal(calls[0].command, "cd -- '/tmp' && printf")
+  assert.equal(calls[0].options.cwd, undefined)
   assert.equal(vi.mocked(NodeSSH.prototype.connect).mock.calls[0][0].privateKeyPath, path.join(os.homedir(), '.ssh/example'))
 })
 
@@ -76,7 +87,7 @@ test('remote home expansion and legacy exec options are copied', async () => {
   })
   const options = Object.freeze({ cwd: '~/app', options: { pty: true } })
   await deploy({ ssh: { host: 'example.invalid' }, cmds: [{ type: 'cmd', args: ['pwd'], options }] })
-  assert.equal(calls[1].options.cwd, '/home/deploy/app')
+  assert.equal(calls[1].command, "cd -- '/home/deploy/app' && pwd")
   assert.deepEqual(calls[1].options.execOptions, { pty: true })
 })
 
@@ -112,4 +123,6 @@ test('real SSH transport escapes arguments and propagates exit status', async t 
   await deploy({ ssh, cmds: [{ type: 'cmd', args, options: { onStdout: chunk => { output += chunk } } }] })
   assert.equal(output, args[2])
   await assert.rejects(deploy({ ssh, cmds: [{ type: 'cmd', args: ['false'] }] }), /Remote command failed \(1\)/)
+  // A successful command must not hide a failed change of directory.
+  await assert.rejects(deploy({ ssh, cmds: [{ type: 'cmd', args: ['true'], cwd: '/dt-nonexistent-directory-765124' }] }), /Remote command failed/)
 }, 15000)

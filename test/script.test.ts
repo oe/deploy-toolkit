@@ -51,7 +51,7 @@ function assertScriptsRemoved(uploaded: FilePair[]) {
 
 test('scripts preserve cwd between transfers, trim transfer paths and clean up', async t => {
   const { root, ssh, uploaded } = localSSH(t)
-  const cwd = path.join(root, "space ' $(echo unsafe)")
+  const cwd = path.join(root, "space ' $(echo unsafe) ")
   fs.mkdirSync(cwd)
   const source = path.join(root, 'source.txt')
   const remote = path.join(root, 'data.txt')

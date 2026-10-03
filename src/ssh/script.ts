@@ -1,4 +1,4 @@
-import { type NodeSSH as SSH } from 'node-ssh'
+import type { NodeSSH as SSH } from 'node-ssh'
 import fs from 'fs'
 import { upload, uploadFiles, type IUploadConfig } from './upload.js'
 import { download, type IDownloadConfig } from './download.js'
@@ -63,7 +63,7 @@ function normalizeScript (script: string, shebang: string, cwd?: string, needCwd
  * @param result output result of the script exec
  */
 function getLastCwd (result: string) {
-  return result.trimEnd().split('\n').pop() as string
+  return result.replace(/\r?\n$/, '').split('\n').pop() as string
 }
 
 function shellQuote (value: string) {
@@ -186,7 +186,7 @@ async function runParticalScript (ssh: SSH, code: string, shebang: string, cwd?:
     fs.writeFileSync(src, normalizeScript(code, shebang, cwd, needCwd), 'utf8')
     await uploadFiles(ssh, [{ local: src, remote }])
     await chmodX(ssh, remote)
-    const result = await sshexec(ssh, shellQuote(remote))
+    const result = await sshexec(ssh, shellQuote(remote), [], { noTrim: true })
     completed = true
     return result.stdout
   } finally {

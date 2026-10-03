@@ -20,7 +20,8 @@ function run(command, args, cwd = directory) {
 }
 
 try {
-  run(pnpmCommand, [...pnpmPrefix, 'pack', '--pack-destination', directory], root)
+  const packOptions = process.argv.includes('--skip-build') ? ['--ignore-scripts'] : []
+  run(pnpmCommand, [...pnpmPrefix, 'pack', ...packOptions, '--pack-destination', directory], root)
   const store = path.dirname(run(pnpmCommand, [...pnpmPrefix, 'store', 'path'], root).trim())
   const { version } = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8'))
   const tarball = path.join(directory, `deploy-toolkit-${version}.tgz`)
@@ -35,15 +36,29 @@ try {
     for (const name of ['deploy', 'runShellCmd', 'findFileRecursive', 'addGitTag']) {
       assert.equal(typeof toolkit[name], 'function')
     }
-    assert.equal(await toolkit.runShellCmd(process.execPath, ['-e', 'process.stdout.write("ok")']), 'ok')
+    assert.equal(await toolkit.runShellCmd(process.execPath, ['-e', 'process.stdout.write("ok")'], { shell: false }), 'ok')
+    assert.equal(await toolkit.runShellCmd('printf legacy && printf shell'), 'legacyshell')
   `
-  writeFileSync(path.join(directory, 'consumer.mjs'), `import assert from 'node:assert/strict'; import * as toolkit from 'deploy-toolkit'; ${check}`)
+  writeFileSync(path.join(directory, 'consumer.mjs'), `import assert from 'node:assert/strict'; import legacyToolkit, * as toolkit from 'deploy-toolkit'; assert.equal(legacyToolkit.deploy, toolkit.deploy); ${check}`)
   writeFileSync(path.join(directory, 'consumer.cjs'), `const assert = require('node:assert/strict'); const toolkit = require('deploy-toolkit'); (async () => { ${check} })().catch(error => { console.error(error); process.exitCode = 1 })`)
   run(process.execPath, ['consumer.mjs'])
   run(process.execPath, ['consumer.cjs'])
+  writeFileSync(path.join(directory, 'legacy.cjs'), `
+    const assert = require('node:assert/strict')
+    assert.equal(require('deploy-toolkit/package.json').version, '${version}')
+    assert.equal(typeof require('deploy-toolkit/dist/index').deploy, 'function')
+    assert.equal(typeof require('deploy-toolkit/dist/ssh').default, 'function')
+    assert.equal(typeof require('deploy-toolkit/dist/ssh/cmd.js').runSSHCmd, 'function')
+    assert.equal(typeof require('deploy-toolkit/dist/ssh/script').runScript, 'function')
+    assert.equal(typeof require('deploy-toolkit/dist/utils.js').runShellCmd, 'function')
+  `)
+  run(process.execPath, ['legacy.cjs'])
   const types = `
-    import { deploy, runShellCmd, findFileRecursive, addGitTag, type IDeployConfig } from 'deploy-toolkit'
+    import { deploy, runShellCmd, findFileRecursive, addGitTag, type IDeployConfig, type ICmds } from 'deploy-toolkit'
+    const cmds: ICmds = []
+    cmds.push({ type: 'cmd', args: ['printf', 'ok'] })
     const config: IDeployConfig = { ssh: { host: 'example.invalid' }, cmds: [{ type: 'cmd', args: ['printf', 'ok'] }] }
+    if (config.cmds[0].type === 'cmd') config.cmds[0].args.push('value')
     void [deploy, runShellCmd, findFileRecursive, addGitTag, config]
   `
   writeFileSync(path.join(directory, 'consumer.mts'), types)

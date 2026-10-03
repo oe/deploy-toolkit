@@ -7,7 +7,7 @@ A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and 
 
 ## Requirements and status
 
-Version 0.2.0 requires **Node.js 22.12 or later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
+Version 0.2.0 requires **Node.js 20 or 22 and later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
 
 This project is suited to maintenance of its small existing API. For deployment inventories, rolling releases, rollback orchestration, or configuration management, use a dedicated tool such as Ansible. See [the maintenance assessment](MAINTENANCE.md) and [migration notes](CHANGELOG.md).
 
@@ -17,7 +17,7 @@ This project is suited to maintenance of its small existing API. For deployment 
 pnpm add -D deploy-toolkit
 ```
 
-The maintenance version is unreleased until published to npm. To evaluate it from a checkout, run `pnpm install --frozen-lockfile && pnpm build`.
+To develop from a checkout, use Node.js 22.12 or later and run `pnpm install --frozen-lockfile && pnpm build`.
 
 ## Deploy
 
@@ -53,7 +53,7 @@ main().catch(error => {
 
 Actions run in order. A failed action rejects `deploy()` and stops the sequence. Set `allowFailure: true` on an action to continue after its failure. The SSH connection is closed after success, action failure, or connection failure. Configurations are reusable and are not modified by execution.
 
-The package supports both CommonJS require and native ES modules, with matching TypeScript declarations. ES module and TypeScript consumers can use named imports:
+The package supports both CommonJS require and native ES modules, with matching TypeScript declarations. Existing `dist/*` imports and the native ESM default API object remain available. ES module and TypeScript consumers can use named imports:
 
 ```ts
 import { deploy, type IDeployConfig } from 'deploy-toolkit'
@@ -104,7 +104,7 @@ The first argument is the command; remaining arguments are shell-escaped by node
 { type: 'download', src: '/srv/app/deploy.log', dest: '/local/deploy.log' }
 ```
 
-A glob that matches multiple files requires `srcPrefix`. With a prefix, every matched file must be inside it. Remote destination paths use POSIX separators. Empty matches and unsuccessful directory transfers fail the action.
+A glob that matches multiple files requires `srcPrefix`. With a prefix, every matched file must be inside it. Remote destination paths use POSIX separators. A glob matching a single directory still uploads it recursively. Empty matches and unsuccessful directory transfers fail the action. Directory transfers retain five concurrent uploads; file lists retain parallel uploads across all matched files.
 
 ### Scripts with file transfers
 
@@ -133,17 +133,17 @@ Set `shell: 'sh'` or `shebang: '#!/bin/sh'` to change the default `#!/usr/bin/en
 
 ### `runShellCmd`
 
-A promise wrapper of Node's `child_process.spawn`. Returns stdout when the process closes with code 0 and rejects with an `Error` on spawn failure, nonzero exit, or signal termination.
+A promise wrapper of Node's `child_process.spawn`. Returns stdout when the process closes with code 0 and rejects with a string on spawn failure, nonzero exit, or signal termination, preserving the existing API.
 
 ```js
 const { runShellCmd } = require('deploy-toolkit')
-await runShellCmd('git', ['status', '--short'])
-await runShellCmd('node', ['build.js'], { cwd: '/local/app', stdio: 'inherit' })
-// Shell expressions require explicit shell mode.
-await runShellCmd('pnpm build && pnpm verify', { shell: true })
+await runShellCmd('git', ['status', '--short'], { shell: false })
+await runShellCmd('node', ['build.js'], { cwd: '/local/app', stdio: 'inherit', shell: false })
+// Shell expressions keep working with the legacy default.
+await runShellCmd('pnpm build && pnpm verify')
 ```
 
-Overloads: `runShellCmd(command, options?)` and `runShellCmd(command, args?, options?)`. Options are Node's `SpawnOptions`; the default cwd is `process.cwd()` and the default `shell` is `false`.
+Overloads: `runShellCmd(command, options?)` and `runShellCmd(command, args?, options?)`. Options are Node's `SpawnOptions`; the default cwd is `process.cwd()` and the default `shell` remains `true`. Use `{ shell: false }` when arguments should be passed literally, especially for values from external input; shell mode concatenates arguments and interprets shell syntax.
 
 ### `findFileRecursive`
 
@@ -178,4 +178,4 @@ pnpm audit
 pnpm test:package
 ```
 
-The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and Vitest 5. CI validates the minimum Node 22.12, current Node 22, and Node 24. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. Vite produces ESM (`dist/index.js`) and CommonJS (`dist/index.cjs`) bundles with runtime dependencies externalized. TypeScript emits declarations for both import and require consumers. `pnpm pack` builds `dist` automatically; generated output is not committed. `pnpm test:package` installs that tarball into an isolated consumer and verifies both runtimes and NodeNext declaration resolution. npm packages contain `dist`, documentation, license, and package metadata.
+The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and Vitest 5. Build/test CI validates Node 22.12, current Node 22, and Node 24; an additional tarball consumer job verifies runtime support on Node 20. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. Vite produces ESM (`dist/index.js`) and CommonJS (`dist/index.cjs`) bundles with runtime dependencies externalized. TypeScript emits declarations for both import and require consumers. `pnpm pack` builds `dist` automatically; generated output is not committed. `pnpm test:package` installs that tarball into an isolated consumer and verifies both runtimes and NodeNext declaration resolution. npm packages contain `dist`, documentation, license, and package metadata.

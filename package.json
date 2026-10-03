@@ -39,7 +39,7 @@
     "ssh2": "^1.17.0"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": "20 || >=22"
   },
   "type": "module",
   "module": "dist/index.js",
@@ -52,6 +52,47 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json",
+    "./dist/index": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./dist/ssh": {
+      "import": {
+        "types": "./dist/ssh/index.d.ts",
+        "default": "./dist/ssh/index.js"
+      },
+      "require": {
+        "types": "./dist/ssh/index.d.cts",
+        "default": "./dist/ssh/index.cjs"
+      }
+    },
+    "./dist/*": {
+      "import": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
+      },
+      "require": {
+        "types": "./dist/*.d.cts",
+        "default": "./dist/*.cjs"
+      }
+    },
+    "./dist/*.js": {
+      "import": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
+      },
+      "require": {
+        "types": "./dist/*.d.cts",
+        "default": "./dist/*.cjs"
       }
     }
   },

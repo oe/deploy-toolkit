@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 import { NodeSSH } from 'node-ssh'
+import type { SFTPWrapper } from 'ssh2'
 import type { IUploadConfig } from '../src/ssh/upload.js'
 import { upload } from '../src/ssh/upload.js'
 
@@ -60,4 +61,36 @@ test('directory upload reports a false result or tick errors', async t => {
   await assert.rejects(upload(ssh, config), /transfer failed/)
   putDirectory.mockResolvedValue(true)
   await upload(ssh, config)
+})
+
+test('a glob matching a single directory retains recursive upload behavior', async t => {
+  const root = fixture(t)
+  const ssh = new NodeSSH()
+  const directories: string[] = []
+  vi.spyOn(ssh, 'putDirectory').mockImplementation(async local => { directories.push(local); return true })
+  await upload(ssh, { type: 'upload', src: `${root}/d*`, dest: '/srv/app' })
+  assert.deepEqual(directories, [path.join(root, 'dist')])
+})
+
+test('dependency upgrades preserve overlapping file and directory transfers', async t => {
+  const root = fixture(t)
+  for (let index = 0; index < 6; index++) fs.writeFileSync(path.join(root, `dist/extra-${index}.txt`), 'extra')
+  for (const [src, expectedPeak] of [[`${root}/dist/**/*.txt`, 8], [path.join(root, 'dist'), 5]] as const) {
+    const ssh = new NodeSSH()
+    const end = vi.fn()
+    vi.spyOn(ssh, 'requestSFTP').mockResolvedValue({ end } as unknown as SFTPWrapper)
+    vi.spyOn(ssh, 'mkdir').mockResolvedValue(undefined)
+    let active = 0
+    let peak = 0
+    const transfer = vi.spyOn(ssh, 'putFile').mockImplementation(async () => {
+      peak = Math.max(peak, ++active)
+      await new Promise<void>(resolve => setImmediate(resolve))
+      active--
+    })
+    // Exercise node-ssh's real queues while replacing only network transfers.
+    await upload(ssh, { type: 'upload', src, srcPrefix: path.join(root, 'dist'), dest: '/srv/app' })
+    assert.equal(peak, expectedPeak)
+    assert.equal(transfer.mock.calls.length, 8)
+    assert.equal(end.mock.calls.length, 1)
+  }
 })

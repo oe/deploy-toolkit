@@ -1,10 +1,10 @@
-import { type NodeSSH as SSH, type SSHExecCommandOptions } from 'node-ssh'
+import type { NodeSSH as SSH, SSHExecCommandOptions } from 'node-ssh'
 import sshexec from './sshexec.js'
 /** custom command */
 export interface IRunConfig {
   type: 'cmd'
   /** cmd arguments */
-  args: readonly string[]
+  args: string[]
   /** cmd work directory */
   cwd?: string
   /** options */

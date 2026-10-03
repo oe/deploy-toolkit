@@ -21,7 +21,7 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
     Object.assign(
       {
         cwd: process.cwd(),
-        shell: false
+        shell: true
       },
       options
     )
@@ -29,21 +29,21 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
 
   return new Promise<string>((resolve, reject) => {
     // record response content
-    const stdout: (string | Buffer)[] = []
-    const stderr: (string | Buffer)[] = []
-    task.stdout?.on('data', data => {
+    const stdout: string[] = []
+    const stderr: string[] = []
+    task.stdout?.setEncoding('utf8').on('data', data => {
       stdout.push(data)
     })
-    task.stderr?.on('data', data => {
+    task.stderr?.setEncoding('utf8').on('data', data => {
       stderr.push(data)
     })
 
     // listen on error, to aviod command crash
-    task.on('error', reject)
+    task.on('error', error => reject(error.message))
 
     task.on('close', (code, signal) => {
       if (code !== 0 || signal) {
-        reject(new Error(`command failed (${signal || code}): ${stderr.join('')}`))
+        reject(`${signal ? `signal: ${signal}` : `error code: ${code}`}\n${stderr.join('')}`)
       } else {
         resolve(stdout.join('').toString())
       }
@@ -79,7 +79,8 @@ export function findFileRecursive (fileName: string | readonly string[], dir = p
 /** add tag for git, use `v${package.version}` in package.json as tagName by default  */
 export async function addGitTag (tagName?: string) {
   const options = {
-    cwd: process.cwd()
+    cwd: process.cwd(),
+    shell: false
   }
   if (!tagName) {
     const pkgPath = findFileRecursive('package.json')

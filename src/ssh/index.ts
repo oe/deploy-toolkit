@@ -1,4 +1,4 @@
-import { NodeSSH as SSH, type Config } from 'node-ssh'
+import type { NodeSSH as SSH, Config } from 'node-ssh'
 import os from 'os'
 
 import { upload, type IUploadConfig } from './upload.js'
@@ -16,7 +16,7 @@ export type {
 /** command */
 export type ICmd = IUploadConfig | IDownloadConfig | IRunConfig | IScriptConfig
 /** commands sequence */
-export type ICmds = readonly ICmd[]
+export type ICmds = ICmd[]
 
 /** SSH Connection config */
 export interface ISshConfig extends Config {
@@ -48,7 +48,8 @@ export interface IDeployConfig {
 
 /** entrance */
 export default async function deploy (deployCmd: IDeployConfig) {
-  const ssh = new SSH()
+  const { NodeSSH } = await import('node-ssh')
+  const ssh = new NodeSSH()
   try {
     const showLog = !!deployCmd.log
     await connectSshClient(ssh, deployCmd.ssh, showLog)
