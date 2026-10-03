@@ -1,4 +1,4 @@
-import { NodeSSH as SSH, SSHExecCommandOptions, SSHExecCommandResponse } from 'node-ssh'
+import { type NodeSSH as SSH, type SSHExecCommandOptions, type SSHExecCommandResponse } from 'node-ssh'
 import { posix } from 'path'
 
 interface ExecOptions extends SSHExecCommandOptions {

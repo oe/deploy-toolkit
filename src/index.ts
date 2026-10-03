@@ -1,11 +1,11 @@
 export {
   default as deploy,
-} from './ssh'
+} from './ssh/index.js'
 
-export * from './ssh'
+export * from './ssh/index.js'
 
 export {
   runShellCmd,
   findFileRecursive,
   addGitTag
-} from './utils'
+} from './utils.js'

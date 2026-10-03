@@ -7,17 +7,17 @@ A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and 
 
 ## Requirements and status
 
-Version 0.2.0 requires **Node.js 22 or later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
+Version 0.2.0 requires **Node.js 22.12 or later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
 
 This project is suited to maintenance of its small existing API. For deployment inventories, rolling releases, rollback orchestration, or configuration management, use a dedicated tool such as Ansible. See [the maintenance assessment](MAINTENANCE.md) and [migration notes](CHANGELOG.md).
 
 ## Install
 
 ```sh
-npm install --save-dev deploy-toolkit
+pnpm add -D deploy-toolkit
 ```
 
-The maintenance version is unreleased until published to npm. To evaluate it from a checkout, run `npm ci && npm run build`.
+The maintenance version is unreleased until published to npm. To evaluate it from a checkout, run `pnpm install --frozen-lockfile && pnpm build`.
 
 ## Deploy
 
@@ -53,7 +53,7 @@ main().catch(error => {
 
 Actions run in order. A failed action rejects `deploy()` and stops the sequence. Set `allowFailure: true` on an action to continue after its failure. The SSH connection is closed after success, action failure, or connection failure. Configurations are reusable and are not modified by execution.
 
-ES module and TypeScript consumers can use named imports:
+The package supports both CommonJS require and native ES modules, with matching TypeScript declarations. ES module and TypeScript consumers can use named imports:
 
 ```ts
 import { deploy, type IDeployConfig } from 'deploy-toolkit'
@@ -140,7 +140,7 @@ const { runShellCmd } = require('deploy-toolkit')
 await runShellCmd('git', ['status', '--short'])
 await runShellCmd('node', ['build.js'], { cwd: '/local/app', stdio: 'inherit' })
 // Shell expressions require explicit shell mode.
-await runShellCmd('npm run build && npm run verify', { shell: true })
+await runShellCmd('pnpm build && pnpm verify', { shell: true })
 ```
 
 Overloads: `runShellCmd(command, options?)` and `runShellCmd(command, args?, options?)`. Options are Node's `SpawnOptions`; the default cwd is `process.cwd()` and the default `shell` is `false`.
@@ -168,11 +168,14 @@ await addGitTag('v1.0.0-beta')
 
 ## Development
 
+Use the pinned pnpm version (`packageManager` in package.json), for example via Corepack. `pnpm test:watch` starts interactive Vitest; `pnpm build` checks source, tests, and configs before generating bundles and declarations.
+
 ```sh
-npm ci
-npm test
-npm audit
-npm pack --dry-run
+pnpm install --frozen-lockfile
+pnpm build
+pnpm test
+pnpm audit
+pnpm test:package
 ```
 
-CI validates Node 22 and 24. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. TypeScript builds all JS and declarations into `dist`, which is generated during `npm pack`/publication and is not committed. npm packages contain `dist`, documentation, license, and package metadata.
+The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and Vitest 5. CI validates the minimum Node 22.12, current Node 22, and Node 24. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. Vite produces ESM (`dist/index.js`) and CommonJS (`dist/index.cjs`) bundles with runtime dependencies externalized. TypeScript emits declarations for both import and require consumers. `pnpm pack` builds `dist` automatically; generated output is not committed. `pnpm test:package` installs that tarball into an isolated offline consumer and verifies both runtimes and NodeNext declaration resolution. npm packages contain `dist`, documentation, license, and package metadata.

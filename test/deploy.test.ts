@@ -1,25 +1,29 @@
-const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const os = require('node:os')
-const path = require('node:path')
-const { generateKeyPairSync } = require('node:crypto')
-const { exec } = require('node:child_process')
-const { once } = require('node:events')
-const { Server } = require('ssh2')
-const { NodeSSH } = require('node-ssh')
-const { deploy } = require('../dist')
+import { test, vi } from 'vitest'
+import assert from 'node:assert/strict'
+import os from 'node:os'
+import path from 'node:path'
+import { generateKeyPairSync } from 'node:crypto'
+import { exec } from 'node:child_process'
+import { once } from 'node:events'
+import { Server } from 'ssh2'
+import { NodeSSH, type SSHExecOptions, type SSHExecCommandResponse } from 'node-ssh'
+import type { AddressInfo } from 'node:net'
+import type { Connection } from 'ssh2'
+import { deploy } from '../src/index.js'
 
-function mockConnection(t, execute) {
+type Execute = (command: string, args: string[], options: SSHExecOptions) => Promise<SSHExecCommandResponse>
+
+function mockConnection(execute: Execute) {
   let disposed = 0
-  t.mock.method(NodeSSH.prototype, 'connect', async function () { return this })
-  t.mock.method(NodeSSH.prototype, 'exec', execute)
-  t.mock.method(NodeSSH.prototype, 'dispose', () => { disposed++ })
+  vi.spyOn(NodeSSH.prototype, 'connect').mockImplementation(async function (this: NodeSSH) { return this })
+  vi.spyOn(NodeSSH.prototype, 'exec').mockImplementation((command, args, options = { stream: 'both' }) => execute(command, args, options))
+  vi.spyOn(NodeSSH.prototype, 'dispose').mockImplementation(() => { disposed++ })
   return () => disposed
 }
 
-test('repeated deployments preserve frozen command and connection configs', async t => {
-  const calls = []
-  const disposed = mockConnection(t, async (command, args, options) => {
+test('repeated deployments preserve frozen command and connection configs', async () => {
+  const calls: { command: string, args: string[], options: SSHExecOptions }[] = []
+  const disposed = mockConnection(async (command, args, options) => {
     calls.push({ command, args, options })
     return { code: 0, signal: null, stdout: 'ok', stderr: 'harmless warning' }
   })
@@ -32,22 +36,22 @@ test('repeated deployments preserve frozen command and connection configs', asyn
   assert.equal(disposed(), 2)
   assert.deepEqual(calls.map(call => call.args), [['hello world'], ['hello world']])
   assert.equal(calls[0].options.cwd, '/tmp')
-  assert.equal(NodeSSH.prototype.connect.mock.calls[0].arguments[0].privateKeyPath, path.join(os.homedir(), '.ssh/example'))
+  assert.equal(vi.mocked(NodeSSH.prototype.connect).mock.calls[0][0].privateKeyPath, path.join(os.homedir(), '.ssh/example'))
 })
 
-test('nonzero exits, signals and missing exit status stop deployment', async t => {
+test('nonzero exits, signals and missing exit status stop deployment', async () => {
   for (const result of [{ code: 7, signal: null }, { code: null, signal: 'TERM' }, { code: null, signal: null }]) {
-    const disposed = mockConnection(t, async () => ({ stdout: '', stderr: '', ...result }))
+    const disposed = mockConnection(async () => ({ stdout: '', stderr: '', ...result }))
     await assert.rejects(deploy({ ssh: { host: 'example.invalid' }, cmds: [{ type: 'cmd', args: ['false'] }, { type: 'cmd', args: ['next'] }] }), /Remote command failed/)
-    assert.equal(NodeSSH.prototype.exec.mock.callCount(), 1)
+    assert.equal(vi.mocked(NodeSSH.prototype.exec).mock.calls.length, 1)
     assert.equal(disposed(), 1)
-    t.mock.restoreAll()
+    vi.restoreAllMocks()
   }
 })
 
-test('allowFailure continues after an unsuccessful command', async t => {
-  const commands = []
-  const disposed = mockConnection(t, async command => {
+test('allowFailure continues after an unsuccessful command', async () => {
+  const commands: string[] = []
+  const disposed = mockConnection(async command => {
     commands.push(command)
     return { code: command === 'false' ? 1 : 0, signal: null, stdout: '', stderr: '' }
   })
@@ -56,17 +60,17 @@ test('allowFailure continues after an unsuccessful command', async t => {
   assert.equal(disposed(), 1)
 })
 
-test('connection failures still dispose the client', async t => {
+test('connection failures still dispose the client', async () => {
   let disposed = 0
-  t.mock.method(NodeSSH.prototype, 'connect', async () => { throw new Error('authentication failed') })
-  t.mock.method(NodeSSH.prototype, 'dispose', () => { disposed++ })
+  vi.spyOn(NodeSSH.prototype, 'connect').mockImplementation(async () => { throw new Error('authentication failed') })
+  vi.spyOn(NodeSSH.prototype, 'dispose').mockImplementation(() => { disposed++ })
   await assert.rejects(deploy({ ssh: { host: 'example.invalid' }, cmds: [] }), /authentication failed/)
   assert.equal(disposed, 1)
 })
 
-test('remote home expansion and legacy exec options are copied', async t => {
-  const calls = []
-  mockConnection(t, async (command, args, options) => {
+test('remote home expansion and legacy exec options are copied', async () => {
+  const calls: { command: string, args: string[], options: SSHExecOptions }[] = []
+  mockConnection(async (command, args, options) => {
     calls.push({ command, args, options })
     return { code: 0, signal: null, stdout: '/home/deploy', stderr: '' }
   })
@@ -76,9 +80,9 @@ test('remote home expansion and legacy exec options are copied', async t => {
   assert.deepEqual(calls[1].options.execOptions, { pty: true })
 })
 
-test('real SSH transport escapes arguments and propagates exit status', { timeout: 15000 }, async t => {
+test('real SSH transport escapes arguments and propagates exit status', async t => {
   const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048, privateKeyEncoding: { type: 'pkcs1', format: 'pem' }, publicKeyEncoding: { type: 'pkcs1', format: 'pem' } })
-  const clients = new Set()
+  const clients = new Set<Connection>()
   const server = new Server({ hostKeys: [privateKey] }, client => {
     clients.add(client)
     client.on('error', () => {})
@@ -90,22 +94,22 @@ test('real SSH transport escapes arguments and propagates exit status', { timeou
         exec(info.command, (error, stdout, stderr) => {
           channel.write(stdout)
           channel.stderr.write(stderr)
-          channel.exit(error ? (error.code || 1) : 0)
+          channel.exit(error ? (typeof error.code === 'number' ? error.code : 1) : 0)
           channel.end()
         })
       })
     }))
   })
-  t.after(async () => {
+  t.onTestFinished(async () => {
     for (const client of clients) client.end()
-    await new Promise(resolve => server.close(resolve))
+    await new Promise<void>(resolve => server.close(() => resolve()))
   })
   server.listen(0, '127.0.0.1')
   await once(server, 'listening')
-  const ssh = { host: '127.0.0.1', port: server.address().port, username: 'test', password: 'test' }
+  const ssh = { host: '127.0.0.1', port: (server.address() as AddressInfo).port, username: 'test', password: 'test' }
   let output = ''
   const args = ['printf', '%s', 'a b; echo unexpected $(echo unexpected)']
   await deploy({ ssh, cmds: [{ type: 'cmd', args, options: { onStdout: chunk => { output += chunk } } }] })
   assert.equal(output, args[2])
   await assert.rejects(deploy({ ssh, cmds: [{ type: 'cmd', args: ['false'] }] }), /Remote command failed \(1\)/)
-})
+}, 15000)

@@ -1,43 +1,46 @@
-const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const os = require('node:os')
-const path = require('node:path')
-const { exec } = require('node:child_process')
-const { promisify } = require('node:util')
-const { runScript } = require('../dist/ssh/script')
-const execute = promisify(exec)
-const quote = value => "'" + value.replace(/'/g, "'\\''") + "'"
+import { test, vi, type TestContext } from 'vitest'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { exec, type ExecException } from 'node:child_process'
+import { NodeSSH } from 'node-ssh'
+import { promisify } from 'node:util'
+import { runScript } from '../src/ssh/script.js'
+type FilePair = { local: string, remote: string }
 
-function localSSH(t) {
+const execute = promisify(exec)
+const quote = (value: string) => "'" + value.replace(/'/g, "'\\''") + "'"
+
+function localSSH(t: TestContext) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dt-script-test-'))
-  const uploaded = []
-  const commands = []
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-  const ssh = {
-    exec: async (command, args) => {
-      commands.push(command)
-      // Keep simulated remote files inside this test's isolated temporary directory.
-      if (command === 'mktemp') command = `mktemp ${quote(path.join(root, 'remote-XXXXXX'))}`
-      try {
-        const result = await execute([command, ...args.map(quote)].join(' '))
-        return { ...result, code: 0, signal: null }
-      } catch (error) {
-        return { stdout: error.stdout, stderr: error.stderr, code: error.code, signal: error.signal }
-      }
-    },
-    putFiles: async pairs => {
-      for (const pair of pairs) {
-        uploaded.push(pair)
-        fs.copyFileSync(pair.local, pair.remote)
-      }
-    },
-    getFile: async (local, remote) => fs.copyFileSync(remote, local)
-  }
+  const uploaded: FilePair[] = []
+  const commands: string[] = []
+  t.onTestFinished(() => fs.rmSync(root, { recursive: true, force: true }))
+  const ssh = new NodeSSH()
+  vi.spyOn(ssh, 'exec').mockImplementation(async (command, args) => {
+    commands.push(command)
+    // Keep simulated remote files inside this test's isolated temporary directory.
+    if (command === 'mktemp') command = `mktemp ${quote(path.join(root, 'remote-XXXXXX'))}`
+    try {
+      const result = await execute([command, ...args.map(quote)].join(' '))
+      return { ...result, code: 0, signal: null }
+    } catch (error) {
+      const failure = error as ExecException & { stdout: string, stderr: string }
+      return { stdout: failure.stdout, stderr: failure.stderr, code: typeof failure.code === 'number' ? failure.code : null, signal: failure.signal || null }
+    }
+  })
+  vi.spyOn(ssh, 'putFiles').mockImplementation(async pairs => {
+    for (const pair of pairs) {
+      uploaded.push(pair)
+      fs.copyFileSync(pair.local, pair.remote)
+    }
+  })
+  vi.spyOn(ssh, 'getFile').mockImplementation(async (local, remote) => fs.copyFileSync(remote, local))
   return { root, ssh, uploaded, commands }
 }
 
-function assertScriptsRemoved(uploaded) {
+function assertScriptsRemoved(uploaded: FilePair[]) {
   const scripts = uploaded.filter(pair => path.basename(pair.local) === 'script')
   assert.ok(scripts.length > 0)
   for (const pair of scripts) {
@@ -78,7 +81,7 @@ test('invalid cwd fails before executing script commands', async t => {
 
 test('upload failures preserve the error and still remove temporary files', async t => {
   const { root, ssh } = localSSH(t)
-  let local
+  let local = ''
   ssh.putFiles = async pairs => { local = pairs[0].local; throw new Error('SFTP unavailable') }
   await assert.rejects(runScript(ssh, { type: 'script', script: 'echo hello' }), /SFTP unavailable/)
   assert.equal(fs.existsSync(path.dirname(local)), false)

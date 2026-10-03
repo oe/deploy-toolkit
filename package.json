@@ -2,18 +2,18 @@
   "name": "deploy-toolkit",
   "version": "0.2.0",
   "description": "A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via ssh, can be used to deploy stuffs or CI/CD",
-  "main": "dist/index.js",
+  "main": "dist/index.cjs",
   "typings": "dist/index.d.ts",
   "repository": "https://github.com/oe/deploy-toolkit.git",
   "author": "Saiya",
   "license": "MIT",
   "scripts": {
-    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
-    "prebuild": "npm run lint && npm run clean",
-    "build": "tsc",
-    "prepack": "npm run build",
-    "lint": "tsc --noEmit",
-    "test": "npm run build && node --test test/*.test.cjs"
+    "lint": "tsc -p tsconfig.test.json",
+    "build": "pnpm run lint && vite build && tsc -p tsconfig.build.json && node build/declarations.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:package": "node test/package-smoke.mjs",
+    "prepack": "pnpm run build"
   },
   "keywords": [
     "deploy",
@@ -32,10 +32,28 @@
     "@types/ssh2": "^1.15.6"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.9.3"
+    "@types/node": "^22.20.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3",
+    "ssh2": "^1.17.0"
   },
   "engines": {
-    "node": ">=22"
-  }
+    "node": ">=22.12.0"
+  },
+  "type": "module",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "packageManager": "pnpm@12.8.1"
 }

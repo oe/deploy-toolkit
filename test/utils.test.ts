@@ -1,9 +1,9 @@
-const { test } = require('node:test')
-const assert = require('node:assert/strict')
-const fs = require('node:fs')
-const os = require('node:os')
-const path = require('node:path')
-const { runShellCmd, findFileRecursive, addGitTag } = require('../dist')
+import { test, vi, type TestContext } from 'vitest'
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { runShellCmd, findFileRecursive, addGitTag } from '../src/index.js'
 
 test('local commands preserve literal arguments and drain all output', async () => {
   const argument = 'a b; echo injected $(echo injected)'
@@ -26,7 +26,7 @@ test('inherited stdio and explicit shell mode work', async () => {
 
 test('ancestor lookup preserves candidate arrays and handles relative paths', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dt-lookup-'))
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  t.onTestFinished(() => fs.rmSync(root, { recursive: true, force: true }))
   fs.mkdirSync(path.join(root, 'one/two'), { recursive: true })
   fs.writeFileSync(path.join(root, 'target.json'), '{}')
   const names = Object.freeze(['missing.json', 'target.json'])
@@ -38,7 +38,7 @@ test('ancestor lookup preserves candidate arrays and handles relative paths', t 
 test('tag helper pushes only the selected tag to an isolated local origin', async t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dt-tag-'))
   const originalCwd = process.cwd()
-  t.after(() => { process.chdir(originalCwd); fs.rmSync(root, { recursive: true, force: true }) })
+  t.onTestFinished(() => { process.chdir(originalCwd); fs.rmSync(root, { recursive: true, force: true }) })
   const repository = path.join(root, 'repo')
   const origin = path.join(root, 'origin.git')
   await runShellCmd('git', ['init', '--bare', origin])

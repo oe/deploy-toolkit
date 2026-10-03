@@ -1,4 +1,4 @@
-import child_process, { SpawnOptions } from 'child_process'
+import child_process, { type SpawnOptions } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 /**
@@ -57,8 +57,8 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
  * @param dir the initial dir path to find, use `process.cwd()` by default
  * @param isDir whether to find a dir
  */
-export function findFileRecursive (fileName: string | string[], dir = process.cwd(), isDir = false): string {
-  const fileNames = Array.isArray(fileName) ? fileName : [fileName]
+export function findFileRecursive (fileName: string | readonly string[], dir = process.cwd(), isDir = false): string {
+  const fileNames = typeof fileName === 'string' ? [fileName] : fileName
   let currentDir = path.resolve(dir)
   while (true) {
     for (const file of fileNames) {
@@ -84,7 +84,7 @@ export async function addGitTag (tagName?: string) {
   if (!tagName) {
     const pkgPath = findFileRecursive('package.json')
     if (!pkgPath) throw new Error('can not find `package.json` to determine the tagName')
-    const pkg = require(pkgPath)
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'))
     tagName = `v${pkg.version}`
     // change cwd to package.json's dirname, to avoid use a package.json version string out of a git repo
     options.cwd = path.dirname(pkgPath)

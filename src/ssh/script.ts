@@ -1,10 +1,10 @@
-import { NodeSSH as SSH } from 'node-ssh'
+import { type NodeSSH as SSH } from 'node-ssh'
 import fs from 'fs'
-import { upload, uploadFiles, IUploadConfig } from './upload'
-import { download, IDownloadConfig } from './download'
+import { upload, uploadFiles, type IUploadConfig } from './upload.js'
+import { download, type IDownloadConfig } from './download.js'
 import path from 'path'
 import os from 'os'
-import sshexec from './sshexec'
+import sshexec from './sshexec.js'
 
 export interface IScriptConfig {
   type: 'script'

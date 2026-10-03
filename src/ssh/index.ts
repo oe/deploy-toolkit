@@ -1,12 +1,12 @@
-import { NodeSSH as SSH, Config } from 'node-ssh'
+import { NodeSSH as SSH, type Config } from 'node-ssh'
 import os from 'os'
 
-import { upload, IUploadConfig } from './upload'
-import { download, IDownloadConfig } from './download'
-import { runSSHCmd, IRunConfig } from './cmd'
-import { runScript, IScriptConfig } from './script'
+import { upload, type IUploadConfig } from './upload.js'
+import { download, type IDownloadConfig } from './download.js'
+import { runSSHCmd, type IRunConfig } from './cmd.js'
+import { runScript, type IScriptConfig } from './script.js'
 
-export {
+export type {
   IUploadConfig,
   IDownloadConfig,
   IRunConfig,
@@ -16,7 +16,7 @@ export {
 /** command */
 export type ICmd = IUploadConfig | IDownloadConfig | IRunConfig | IScriptConfig
 /** commands sequence */
-export type ICmds = ICmd[]
+export type ICmds = readonly ICmd[]
 
 /** SSH Connection config */
 export interface ISshConfig extends Config {

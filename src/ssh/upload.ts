@@ -1,7 +1,7 @@
 import path from 'path'
 import { glob } from 'glob'
 import fs from 'fs'
-import { NodeSSH as SSH } from 'node-ssh'
+import { type NodeSSH as SSH } from 'node-ssh'
 
 /** upload config */
 export interface IUploadConfig {
