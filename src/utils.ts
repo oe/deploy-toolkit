@@ -12,17 +12,16 @@ export function runShellCmd (cmd: string, options?: SpawnOptions): Promise<strin
 export function runShellCmd (cmd: string, args?: string[], options?: SpawnOptions): Promise<string>
 export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, options?: SpawnOptions) {
   if (!Array.isArray(args)) {
-    options = args
+    options = args || options
     args = []
   }
   const task = child_process.spawn(
     cmd,
-    // @ts-ignore
     args,
     Object.assign(
       {
         cwd: process.cwd(),
-        shell: true
+        shell: false
       },
       options
     )
@@ -32,22 +31,19 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
     // record response content
     const stdout: (string | Buffer)[] = []
     const stderr: (string | Buffer)[] = []
-    task.stdout.on('data', data => {
+    task.stdout?.on('data', data => {
       stdout.push(data)
     })
-    task.stderr.on('data', data => {
+    task.stderr?.on('data', data => {
       stderr.push(data)
     })
 
     // listen on error, to aviod command crash
-    task.on('error', () => {
-      reject(stderr.join('').toString())
-    })
+    task.on('error', reject)
 
-    task.on('exit', code => {
-      if (code) {
-        stderr.unshift(`error code: ${code}\n`)
-        reject(stderr.join('').toString())
+    task.on('close', (code, signal) => {
+      if (code !== 0 || signal) {
+        reject(new Error(`command failed (${signal || code}): ${stderr.join('')}`))
       } else {
         resolve(stdout.join('').toString())
       }
@@ -62,24 +58,22 @@ export function runShellCmd (cmd: string, args?: string[] | SpawnOptions, option
  * @param isDir whether to find a dir
  */
 export function findFileRecursive (fileName: string | string[], dir = process.cwd(), isDir = false): string {
-  // const filepath = path.join(dir, fileName)
   const fileNames = Array.isArray(fileName) ? fileName : [fileName]
-  let f: string | undefined = ''
-  // tslint:disable-next-line:no-conditional-assignment
-  while ((f = fileNames.shift())) {
-    const filepath = path.join(dir, f)
-    try {
-      const stat = fs.statSync(filepath)
-      const isFound = isDir ? stat.isDirectory() : stat.isFile()
-      if (isFound) return filepath
-    } catch (e) {
-      // xxx
+  let currentDir = path.resolve(dir)
+  while (true) {
+    for (const file of fileNames) {
+      const filepath = path.join(currentDir, file)
+      try {
+        const stat = fs.statSync(filepath)
+        if (isDir ? stat.isDirectory() : stat.isFile()) return filepath
+      } catch {
+        // Keep searching ancestors when the candidate is absent or inaccessible.
+      }
     }
+    const parentDir = path.dirname(currentDir)
+    if (parentDir === currentDir) return ''
+    currentDir = parentDir
   }
-  // has reach the top root
-  const parentDir = path.dirname(dir)
-  if (parentDir === dir) return ''
-  return findFileRecursive(fileName, parentDir, isDir)
 }
 
 /** add tag for git, use `v${package.version}` in package.json as tagName by default  */
@@ -95,7 +89,8 @@ export async function addGitTag (tagName?: string) {
     // change cwd to package.json's dirname, to avoid use a package.json version string out of a git repo
     options.cwd = path.dirname(pkgPath)
   }
-  await runShellCmd('git', ['tag', `${tagName}`], options)
-  await runShellCmd('git', ['push', 'origin', `${tagName}`], options)
+  await runShellCmd('git', ['check-ref-format', `refs/tags/${tagName}`], options)
+  await runShellCmd('git', ['tag', '--', tagName], options)
+  await runShellCmd('git', ['push', 'origin', `refs/tags/${tagName}`], options)
   return tagName
 }

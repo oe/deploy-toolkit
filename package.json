@@ -1,23 +1,19 @@
 {
   "name": "deploy-toolkit",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "A toolkit make it easy(with plain config) to manipulate(upload/download/exec command) server via ssh, can be used to deploy stuffs or CI/CD",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
-  "repository": "https://github.com/evecalm/deploy-toolkit.git",
+  "repository": "https://github.com/oe/deploy-toolkit.git",
   "author": "Saiya",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node test/index.ts",
-    "clean": "rimraf ./dist",
-    "prebuild": "yarn run lint && yarn run clean",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "prebuild": "npm run lint && npm run clean",
     "build": "tsc",
-    "build:js": "babel ./src --out-dir dist --extensions \".ts\"",
-    "build:types": "tsc --emitDeclarationOnly",
-    "prepublish": "yarn build",
-    "postpublish": "ts-node build/post-publish.ts",
-    "lint-message": "echo 'lint code before commit'",
-    "lint": "tslint -c tslint.json 'src/**/*.ts'"
+    "prepack": "npm run build",
+    "lint": "tsc --noEmit",
+    "test": "npm run build && node --test test/*.test.cjs"
   },
   "keywords": [
     "deploy",
@@ -25,36 +21,21 @@
     "ci/cd",
     "upload"
   ],
-  "husky": {
-    "hooks": {
-      "pre-commit": "yarn run lint-message && yarn run lint"
-    }
-  },
+  "files": [
+    "dist",
+    "CHANGELOG.md",
+    "MAINTENANCE.md"
+  ],
   "dependencies": {
-    "@types/glob": "^7.1.1",
-    "glob": "^7.1.3",
-    "node-ssh": "^5.1.2"
+    "glob": "^13.0.6",
+    "node-ssh": "^13.2.1",
+    "@types/ssh2": "^1.15.6"
   },
   "devDependencies": {
-    "@babel/cli": "^7.1.5",
-    "@babel/core": "^7.1.6",
-    "@babel/plugin-proposal-class-properties": "^7.1.0",
-    "@babel/plugin-proposal-object-rest-spread": "^7.0.0",
-    "@babel/preset-env": "^7.1.6",
-    "@babel/preset-typescript": "^7.1.0",
-    "@types/fs-extra": "^5.0.4",
-    "@types/node": "8",
-    "@types/ssh2": "^0.5.36",
-    "fs-extra": "^7.0.1",
-    "husky": "^1.1.4",
-    "rimraf": "^2.6.2",
-    "ts-node": "^7.0.1",
-    "tslint": "^5.11.0",
-    "tslint-config-prettier": "^1.16.0",
-    "tslint-config-standard": "^8.0.1",
-    "typescript": "^3.1.6"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=8"
+    "node": ">=22"
   }
 }

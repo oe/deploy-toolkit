@@ -1,4 +1,4 @@
-import SSH from 'node-ssh'
+import { NodeSSH as SSH } from 'node-ssh'
 /** download config */
 export interface IDownloadConfig {
   type: 'download'

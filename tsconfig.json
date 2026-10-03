@@ -5,25 +5,14 @@
     "declaration": true,
     "strict": true,
     "noImplicitReturns": true,
-    "noImplicitAny": false,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "module": "commonjs",
     "moduleResolution": "node",
     "esModuleInterop": true,
-    "target": "esnext",
+    "target": "es2022",
     "allowJs": false,
-    "baseUrl": "./",
-    "lib": [
-      "dom",
-      "es7"
-    ],
-    "paths": {
-      "src/*": [
-        "src/"
-      ]
-    }
+    "lib": ["es2022"],
+    "types": ["node"]
   },
   "include": [
     "./src/**/*.ts"

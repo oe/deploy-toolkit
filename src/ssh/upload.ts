@@ -1,7 +1,7 @@
 import path from 'path'
-import glob from 'glob'
+import { glob } from 'glob'
 import fs from 'fs'
-import SSH from 'node-ssh'
+import { NodeSSH as SSH } from 'node-ssh'
 
 /** upload config */
 export interface IUploadConfig {
@@ -28,15 +28,9 @@ type IFilePairs = IFilePair[]
 
 /** upload files and directory */
 export async function upload (ssh: SSH, cmd: IUploadConfig, showLog?: boolean) {
-  const srcfiles = await getLocalFile(cmd.src, false)
+  const srcfiles = await getLocalFile(cmd.src)
   if (showLog) {
     console.log('[deploy][upload]upload file with config: \n', JSON.stringify(cmd, null, 2))
-  }
-  if (!srcfiles.length) {
-    if (showLog) {
-      console.warn('[deploy][upload][warn]can not find any file to upload with config:\n ', JSON.stringify(cmd, null, 2))
-    }
-    return
   }
   if (srcfiles.length === 1 && fs.statSync(srcfiles[0]).isDirectory()) {
     const src = srcfiles[0]
@@ -56,7 +50,7 @@ export async function upload (ssh: SSH, cmd: IUploadConfig, showLog?: boolean) {
 /** upload folder */
 async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
   const failed: string[] = []
-  await ssh.putDirectory(srcDir, destDir, {
+  const success = await ssh.putDirectory(srcDir, destDir, {
     recursive: true,
     tick: function (localPath, remotePath, error) {
       if (error) {
@@ -64,8 +58,8 @@ async function uploadDir (ssh: SSH, srcDir: string, destDir: string) {
       }
     }
   })
-  if (failed.length) {
-    throw new Error(failed.join('\n'))
+  if (!success || failed.length) {
+    throw new Error(failed.join('\n') || `Failed to upload directory ${srcDir}`)
   }
 }
 
@@ -76,38 +70,30 @@ export async function uploadFiles (ssh: SSH, pairs: IFilePairs) {
 }
 
 function getFilePairs (srcFiles: string[], cmd: IUploadConfig): IFilePairs {
-  if (srcFiles.length === 1) {
-    const src = srcFiles[0]
-    let dest = cmd.dest
-    if (cmd.srcPrefix) {
-      dest = path.join(dest, src.replace(cmd.srcPrefix, ''))
-    }
-    return [{ local: src, remote: dest }]
+  if (srcFiles.length === 1 && !cmd.srcPrefix) {
+    return [{ local: srcFiles[0], remote: cmd.dest }]
   }
   if (!cmd.srcPrefix) {
-    throw new TypeError('`srcPrefix` must be sepicifed when upload multi files through `src` pattern')
+    throw new TypeError('`srcPrefix` must be specified when uploading multiple files')
   }
-  const prefix = cmd.srcPrefix
-  return srcFiles.map(f => {
+  const prefix = path.resolve(cmd.srcPrefix)
+  return srcFiles.map(local => {
+    const relative = path.relative(prefix, local)
+    if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      throw new Error(`Upload source ${local} is outside srcPrefix ${cmd.srcPrefix}`)
+    }
+    if (!fs.statSync(local).isFile()) throw new Error(`Upload pattern matched a directory: ${local}`)
     return {
-      local: f,
-      remote: path.join(cmd.dest, f.replace(prefix, ''))
+      local,
+      remote: path.posix.join(cmd.dest, relative.split(path.sep).join('/'))
     }
   })
 }
 
-
-/** get match file with the file pattern */
-function getLocalFile (pattern: string, suppressErr: boolean) {
-  return new Promise<string[]>((resolve, reject) => {
-    glob(path.join(pattern), (err, files) => {
-      if (err) return suppressErr ? resolve() : reject(err)
-      if (!files.length) {
-        return suppressErr
-          ? resolve()
-          : reject(new Error(`no ${pattern} file found`))
-      }
-      resolve(files)
-    })
-  })
+/** Match literal paths first so file names containing glob syntax remain usable. */
+async function getLocalFile (pattern: string): Promise<string[]> {
+  if (fs.existsSync(pattern)) return [path.resolve(pattern)]
+  const files = await glob(pattern, { absolute: true, nodir: true })
+  if (!files.length) throw new Error(`No files found for ${pattern}`)
+  return files.sort()
 }
