@@ -106,6 +106,45 @@ The first argument is the command; remaining arguments are shell-escaped by node
 
 A glob that matches multiple files requires `srcPrefix`. With a prefix, every matched file must be inside it. Remote destination paths use POSIX separators. A glob matching a single directory still uploads it recursively. Empty matches and unsuccessful directory transfers fail the action. Directory transfers retain five concurrent uploads; file lists retain parallel uploads across all matched files.
 
+### Scripts
+
+Scripts execute on the remote server. `cwd` selects the initial remote directory: absolute paths are used directly, relative paths start at the SSH command's default directory, and `~/` resolves to the remote user's home. An invalid directory fails before the body runs. Each new script action starts independently.
+
+The following additional options are **unreleased**. Use them from the current source checkout until the next npm release:
+
+```ts
+{
+  type: 'script',
+  cwd: '/srv/app',
+  shell: 'bash',
+  shellArgs: ['-o', 'pipefail'],
+  parseTransfers: false,
+  env: { APP_ENV: 'production' },
+  timeoutMs: 30_000,
+  script: `
+    for service in web worker; do
+      ./restart.sh "$service"
+    done
+  `,
+}
+```
+
+| Option | Behavior |
+| --- | --- |
+| `script` | Required shell text; CRLF line endings are normalized to LF. |
+| `cwd` | Initial remote directory; later `cd` commands affect the remainder of the script. |
+| `shell` | Remote interpreter name or path, default `bash`. The interpreter must be installed on the server. |
+| `shebang` | Interpreter line. Priority: inline shebang, configured shebang, shell, default bash. |
+| `shellArgs` | Literal interpreter arguments, such as `['-o', 'pipefail']`; nonempty arguments cannot be combined with a shebang. Keep `shell` as a name/path, rather than `bash -e`. |
+| `parseTransfers` | Defaults to `true`. Set `false` to execute one shell program, preserving variables/functions and here-doc lines containing UPLOAD/DOWNLOAD. |
+| `env` | String values passed literally to the interpreter and its children. Names must be valid shell variable names; values are not shell expressions. Each transfer-separated portion receives these initial values. |
+| `timeoutMs` | Optional positive integer: cumulative shell execution budget for this action, including waiting for execution results, excluding connections, file transfers, and cleanup. |
+| `allowFailure` | Defaults to false; continue with the next deployment action after a failure when enabled. |
+
+Shells must support POSIX-style `set -e`, quoting, and `cd`; Bash and sh are supported. Shell conditions and pipelines keep their normal failure semantics. `shellArgs: ['-o', 'pipefail']` requires an interpreter supporting that option, such as Bash. `env` changes the script process environment, including interpreter startup; `cwd` does not interpolate environment variables.
+
+When `timeoutMs` is set, the remote server needs GNU `timeout` or a compatible command with `--kill-after`. Its execution deadline sends TERM to the command's ordinary process group, then KILL after a one-second grace period. Cleanup and network delays can extend the total action time; this is not a connection or SFTP timeout. Detached services may escape the process group, so use the service manager to stop them. Timeout failures normally report exit code 124, or 137 after forced termination. Without `timeoutMs`, execution retains its existing unlimited behavior.
+
 ### Scripts with file transfers
 
 ```js
