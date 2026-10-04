@@ -1,9 +1,13 @@
 # Deploy toolkit
 
-A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and shell scripts. Useful for deploying build output to a few servers from a Node.js script or CI job.
+[![NPM Version][npm-img]][npm-url]
+[![Build Status][build-img]][build-url]
+[![NPM Downloads][downloads-img]][npm-url]
+[![License][license-img]](https://github.com/oe/deploy-toolkit/blob/master/LICENSE)
+[![Language: TypeScript][language-img]](https://github.com/oe/deploy-toolkit/tree/master/src)
+[![Types][types-img]][npm-url]
 
-[![CI](https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml/badge.svg)](https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/deploy-toolkit.svg)](https://www.npmjs.com/package/deploy-toolkit)
+A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and shell scripts. Useful for deploying build output to a few servers from a Node.js script or CI job.
 
 ## Requirements and status
 
@@ -218,3 +222,12 @@ pnpm test:package
 ```
 
 The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and Vitest 5. Build/test CI validates Node 22.12, current Node 22, and Node 24; an additional tarball consumer job verifies runtime support on Node 20. Tests include an in-process SSH server and isolated local shell/file-transfer fixtures; no deployment server or real credentials are needed. Vite produces ESM (`dist/index.js`) and CommonJS (`dist/index.cjs`) bundles with runtime dependencies externalized. TypeScript emits declarations for both import and require consumers. `pnpm pack` builds `dist` automatically; generated output is not committed. `pnpm test:package` installs that tarball into an isolated consumer and verifies both runtimes and NodeNext declaration resolution. npm packages contain `dist`, documentation, license, and package metadata.
+
+[npm-url]: https://www.npmjs.com/package/deploy-toolkit
+[npm-img]: https://img.shields.io/npm/v/deploy-toolkit
+[build-url]: https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml
+[build-img]: https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml/badge.svg?branch=master
+[downloads-img]: https://img.shields.io/npm/dm/deploy-toolkit
+[license-img]: https://img.shields.io/github/license/oe/deploy-toolkit
+[language-img]: https://img.shields.io/badge/language-TypeScript-3178C6?logo=typescript&logoColor=white
+[types-img]: https://img.shields.io/npm/types/deploy-toolkit
