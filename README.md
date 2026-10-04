@@ -7,7 +7,7 @@ A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and 
 
 ## Requirements and status
 
-Version 0.2.0 requires **Node.js 20 or 22 and later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
+Version 0.2.1 requires **Node.js 20 or 22 and later**, an SSH server supporting command execution/SFTP, and a POSIX remote shell. Script actions require Bash by default, or another POSIX-compatible shell selected with `shell`/`shebang`.
 
 This project is suited to maintenance of its small existing API. For deployment inventories, rolling releases, rollback orchestration, or configuration management, use a dedicated tool such as Ansible. See [the maintenance assessment](MAINTENANCE.md) and [migration notes](CHANGELOG.md).
 
@@ -110,7 +110,7 @@ A glob that matches multiple files requires `srcPrefix`. With a prefix, every ma
 
 Scripts execute on the remote server. `cwd` selects the initial remote directory: absolute paths are used directly, relative paths start at the SSH command's default directory, and `~/` resolves to the remote user's home. An invalid directory fails before the body runs. Each new script action starts independently.
 
-The following additional options are **unreleased**. Use them from the current source checkout until the next npm release:
+Version 0.2.1 adds optional interpreter arguments, environment variables, plain shell execution, and a shell execution budget:
 
 ```ts
 {

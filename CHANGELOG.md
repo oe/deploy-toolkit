@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 (2026-10-04)
 
 - Add opt-in plain shell scripts with `parseTransfers: false`, preserving here-doc text and shell state without interpreting UPLOAD/DOWNLOAD lines. Transfer parsing remains enabled by default.
 - Add `shellArgs` for literal interpreter arguments and `env` for literal environment values available at interpreter startup and in child processes. Keep existing shell/shebang priority; reject nonempty shellArgs combined with a shebang.
