@@ -54,11 +54,16 @@ try {
   `)
   run(process.execPath, ['legacy.cjs'])
   const types = `
-    import { deploy, runShellCmd, findFileRecursive, addGitTag, type IDeployConfig, type ICmds } from 'deploy-toolkit'
+    import { deploy, runShellCmd, findFileRecursive, addGitTag, type IDeployConfig, type ICmds, type IScriptConfig } from 'deploy-toolkit'
     const cmds: ICmds = []
     cmds.push({ type: 'cmd', args: ['printf', 'ok'] })
     const config: IDeployConfig = { ssh: { host: 'example.invalid' }, cmds: [{ type: 'cmd', args: ['printf', 'ok'] }] }
     if (config.cmds[0].type === 'cmd') config.cmds[0].args.push('value')
+    const script: IScriptConfig = {
+      type: 'script', cwd: '~/app', shell: 'bash', shellArgs: ['-o', 'pipefail'],
+      parseTransfers: false, env: { APP_ENV: 'production' }, timeoutMs: 30000, script: './restart.sh',
+    }
+    config.cmds.push(script)
     void [deploy, runShellCmd, findFileRecursive, addGitTag, config]
   `
   writeFileSync(path.join(directory, 'consumer.mts'), types)

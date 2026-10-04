@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 (2026-10-04)
+
+- Add opt-in plain shell scripts with `parseTransfers: false`, preserving here-doc text and shell state without interpreting UPLOAD/DOWNLOAD lines. Transfer parsing remains enabled by default.
+- Add `shellArgs` for literal interpreter arguments and `env` for literal environment values available at interpreter startup and in child processes. Keep existing shell/shebang priority; reject nonempty shellArgs combined with a shebang.
+- Add `timeoutMs` as a shared execution budget across shell portions, excluding transfers and cleanup. It requires remote GNU-compatible timeout, terminates ordinary process groups, and escalates to kill after a one-second grace period. Existing configurations have no timeout and need no additional utility.
+- Normalize CRLF script line endings and retain relative/absolute/home cwd behavior, failure handling, configuration reuse, and temporary-file cleanup.
+
 ## 0.2.0 (2026-10-03)
 
 ### Migration
