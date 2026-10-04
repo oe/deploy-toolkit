@@ -20,7 +20,7 @@
 - 旧测试文件是连接固定局域网地址的手工示例，没有自动断言。Node 8 / TypeScript 3 / Travis / Babel / TSLint 工具链已明显陈旧。
 - 基线 npm 依赖审计报告 36 项漏洞：4 低、6 中、17 高、9 严重；包括开发工具和运行时传递依赖，不代表已发生利用。更新后的完整依赖树审计为 0 项（结果随漏洞数据库变化）。
 
-证据来源：[仓库](https://github.com/oe/deploy-toolkit)、[提交](https://github.com/oe/deploy-toolkit/commits/master)、[开放 PR](https://github.com/oe/deploy-toolkit/pulls)、npm registry 元数据和本地依赖审计。
+证据来源：[仓库](https://github.com/oe/deploy-toolkit)、[提交](https://github.com/oe/deploy-toolkit/commits/main)、[开放 PR](https://github.com/oe/deploy-toolkit/pulls)、npm registry 元数据和本地依赖审计。
 
 ## 本轮维护范围
 

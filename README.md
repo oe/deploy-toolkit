@@ -3,8 +3,8 @@
 [![NPM Version][npm-img]][npm-url]
 [![Build Status][build-img]][build-url]
 [![NPM Downloads][downloads-img]][npm-url]
-[![License][license-img]](https://github.com/oe/deploy-toolkit/blob/master/LICENSE)
-[![Language: TypeScript][language-img]](https://github.com/oe/deploy-toolkit/tree/master/src)
+[![License][license-img]](https://github.com/oe/deploy-toolkit/blob/main/LICENSE)
+[![Language: TypeScript][language-img]](https://github.com/oe/deploy-toolkit/tree/main/src)
 [![Types][types-img]][npm-url]
 
 A small TypeScript toolkit for sequential SSH commands, uploads, downloads, and shell scripts. Useful for deploying build output to a few servers from a Node.js script or CI job.
@@ -226,7 +226,7 @@ The repository pins pnpm 12.8.1 and uses TypeScript 7, Vite 8 library mode, and 
 [npm-url]: https://www.npmjs.com/package/deploy-toolkit
 [npm-img]: https://img.shields.io/npm/v/deploy-toolkit
 [build-url]: https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml
-[build-img]: https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml/badge.svg?branch=master
+[build-img]: https://github.com/oe/deploy-toolkit/actions/workflows/ci.yml/badge.svg?branch=main
 [downloads-img]: https://img.shields.io/npm/dm/deploy-toolkit
 [license-img]: https://img.shields.io/github/license/oe/deploy-toolkit
 [language-img]: https://img.shields.io/badge/language-TypeScript-3178C6?logo=typescript&logoColor=white
